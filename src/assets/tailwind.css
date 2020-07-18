@@ -1,0 +1,23 @@
+@tailwind base;
+
+@tailwind components;
+
+.btn {
+  @apply px-4 py-2 rounded bg-gray-500 text-white;
+}
+
+.btn:hover,
+.btn:focus {
+  @apply bg-gray-600;
+}
+
+.btn.primary {
+  @apply bg-blue-500;
+}
+
+.btn.primary:hover,
+.btn.primary:focus {
+  @apply bg-blue-600;
+}
+
+@tailwind utilities;
