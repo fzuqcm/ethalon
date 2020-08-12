@@ -1,5 +1,5 @@
 <template>
-  <div id="freq-diss-plot"></div>
+  <div id="dissipation-plot"></div>
 </template>
 
 <script>
@@ -11,7 +11,7 @@ export default {
     this.$forceUpdate()
   },
   updated() {
-    Plotly.newPlot('freq-diss-plot', [lineTrace([], [])])
+    Plotly.newPlot('dissipation-plot', [lineTrace([], [])])
   },
 }
 </script>
