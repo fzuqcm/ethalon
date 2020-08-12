@@ -20,9 +20,15 @@ export default {
     devicesInPlot() {
       return this.$store.getters.devicesInPlot(this.name)
     },
+    devicesDatapoints() {
+      return this.$store.getters.devicesDatapoints(this.name)
+    },
   },
   watch: {
     devicesInPlot() {
+      this.$forceUpdate()
+    },
+    devicesDatapoints() {
       this.$forceUpdate()
     },
   },
