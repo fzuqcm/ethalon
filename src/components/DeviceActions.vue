@@ -33,10 +33,10 @@
       >
         - <br />dissipation
       </button>
-      <button @click="$store.commit('removeFromPlot', 'phase')" class="btn">
+      <button class="btn" @click="$store.commit('removeFromPlot', 'phase')">
         - <br />phase
       </button>
-      <button @click="$store.commit('removeFromPlot', 'magnitude')" class="btn">
+      <button class="btn" @click="$store.commit('removeFromPlot', 'magnitude')">
         - <br />magnitude
       </button>
     </div>

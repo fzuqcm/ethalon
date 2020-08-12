@@ -12,17 +12,37 @@
         :label="d.label"
         :isSelected="d.selected"
         @pick="d.selected = !d.selected"
+        @edit="editDevice(d)"
       />
+      <full-modal v-if="device !== null" @close="device = null">
+        <form>
+          <label>
+            <input v-model="device.label" />
+          </label>
+        </form>
+      </full-modal>
     </div>
   </div>
 </template>
 
 <script>
 import DeviceListItem from './DeviceListItem.vue'
+import FullModal from './FullModal.vue'
 
 export default {
   components: {
     DeviceListItem,
+    FullModal,
+  },
+  data() {
+    return {
+      device: null,
+    }
+  },
+  methods: {
+    editDevice(device) {
+      this.device = device
+    },
   },
 }
 </script>

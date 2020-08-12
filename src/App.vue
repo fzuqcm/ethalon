@@ -10,10 +10,6 @@
         <measurement-plot name="dissipation" />
         <measurement-plot name="phase" />
         <measurement-plot name="magnitude" />
-        <!-- <temperature-plot /> -->
-        <!-- <dissipation-plot /> -->
-        <!-- <phase-plot /> -->
-        <!-- <magnitude-plot /> -->
       </div>
     </div>
     <div class="w-64">
@@ -26,10 +22,6 @@
 <script>
 import DeviceList from './components/DeviceList.vue'
 import DeviceActions from './components/DeviceActions.vue'
-//import TemperaturePlot from './components/TemperaturePlot.vue'
-//import PhasePlot from './components/PhasePlot.vue'
-//import DissipationPlot from './components/DissipationPlot.vue'
-//import MagnitudePlot from './components/MagnitudePlot.vue'
 import MeasurementPlot from './components/MeasurementPlot.vue'
 
 export default {
@@ -38,13 +30,9 @@ export default {
     DeviceList,
     DeviceActions,
     MeasurementPlot,
-    //TemperaturePlot,
-    //PhasePlot,
-    //DissipationPlot,
-    //MagnitudePlot,
   },
   mounted() {
-    //this.$store.commit('generateData')
+    this.$store.commit('generateData')
   },
 }
 </script>
