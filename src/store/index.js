@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import SerialPort from 'serialport'
+// import SerialPort from 'serialport'
 
 Vue.use(Vuex)
 
@@ -22,9 +22,9 @@ export default new Vuex.Store({
   },
   actions: {
     scanSerialPorts() {
-      SerialPort.list().then(portInfos => {
-        portInfos.forEach(console.log)
-      })
+      // SerialPort.list().then(portInfos => {
+      //   portInfos.forEach(console.log)
+      // })
     },
   },
   modules: {},
