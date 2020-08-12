@@ -39,7 +39,19 @@
 </template>
 
 <script>
+//import serialport from 'serialport'
+//const INIT_SEQUENCE=`${10 ** 6};${ 5 * (10 ** 7) };${10 ** 3}\n`
+
 export default {
-  methods: {},
+
+  methods: {
+    checkports: function () {
+      console.log(`Vue: window.serialport: ${window.serialport}`)
+      const serial = window.serialport
+      serial.list().then(ports => {
+        console.log(ports)
+      })
+    }
+}
 }
 </script>
