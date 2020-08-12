@@ -87,19 +87,19 @@ export default {
       const serial = window.serialport
 
       serial.list().then(ports => {
-        for (let i in ports) {
-          if (!Object.prototype.hasOwnProperty.call(ports, i)) continue
+        for (let port of ports) {
 
-          let port = ports[i]
           let match = Object.keys(DEVICE_MATCH).every(
             key => DEVICE_MATCH[key] === port[key]
           )
+
           if (!match) continue
 
           let device = {
             ...DEVICE_TEMPLATE,
             ...{ label: port.path, path: port.path },
           }
+
           this.$store.commit('addDevice', device)
         }
       })
