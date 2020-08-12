@@ -1,7 +1,6 @@
 export const plotMixin = {
   computed: {
     id() {
-
       console.log(this)
       return 'yaabs'
     },
