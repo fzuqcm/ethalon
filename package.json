@@ -20,6 +20,7 @@
     "lodash": "^4.17.15",
     "mssql": "^6.2.0",
     "plotly.js-dist": "^1.54.2",
+    "serialport": "^9.0.1",
     "sqlite3": "^5.0.0",
     "vue": "^2.6.11",
     "vuex": "^3.4.0"
