@@ -4,11 +4,16 @@
       <h3 class="text-center text-lg py-3">Devices</h3>
       <device-list />
     </div>
-    <div class="bg-red-400 flex-1">
-      <div class="grid grid-cols-2 gap-2">
-        <temperature-plot />
-        <amp-phase-plot />
-        <freq-diss-plot class="col-span-2" />
+    <div class="flex-1">
+      <div class="grid grid-cols-2">
+        <measurement-plot name="temperature" />
+        <measurement-plot name="dissipation" />
+        <measurement-plot name="phase" />
+        <measurement-plot name="magnitude" />
+        <!-- <temperature-plot /> -->
+        <!-- <dissipation-plot /> -->
+        <!-- <phase-plot /> -->
+        <!-- <magnitude-plot /> -->
       </div>
     </div>
     <div class="w-64">
@@ -21,18 +26,25 @@
 <script>
 import DeviceList from './components/DeviceList.vue'
 import DeviceActions from './components/DeviceActions.vue'
-import TemperaturePlot from './components/TemperaturePlot.vue'
-import AmpPhasePlot from './components/AmpPhasePlot.vue'
-import FreqDissPlot from './components/FreqDissPlot.vue'
+//import TemperaturePlot from './components/TemperaturePlot.vue'
+//import PhasePlot from './components/PhasePlot.vue'
+//import DissipationPlot from './components/DissipationPlot.vue'
+//import MagnitudePlot from './components/MagnitudePlot.vue'
+import MeasurementPlot from './components/MeasurementPlot.vue'
 
 export default {
   name: 'App',
   components: {
     DeviceList,
     DeviceActions,
-    TemperaturePlot,
-    AmpPhasePlot,
-    FreqDissPlot,
+    MeasurementPlot,
+    //TemperaturePlot,
+    //PhasePlot,
+    //DissipationPlot,
+    //MagnitudePlot,
+  },
+  mounted() {
+    //this.$store.commit('generateData')
   },
 }
 </script>

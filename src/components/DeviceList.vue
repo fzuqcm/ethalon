@@ -10,8 +10,8 @@
         v-for="d in $store.state.devices"
         :key="d.label"
         :label="d.label"
-        :isSelected="d.sel"
-        @pick="d.sel = !d.sel"
+        :isSelected="d.selected"
+        @pick="d.selected = !d.selected"
       />
     </div>
   </div>
