@@ -2,6 +2,7 @@ import Vue from 'vue'
 import App from './App.vue'
 import store from './store'
 import './assets/tailwind.css'
+import knexConfig from '../knexfile.js'
 
 Vue.config.productionTip = false
 
@@ -10,9 +11,4 @@ new Vue({
   render: h => h(App),
 }).$mount('#app')
 
-export const knex = require('knex')({
-  client: 'sqlite3',
-  connection: () => ({
-    filename: process.env.SQLITE_FILENAME,
-  }),
-})
+export const knex = require('knex')(knexConfig.development)

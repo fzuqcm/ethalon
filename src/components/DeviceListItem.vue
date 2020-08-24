@@ -3,14 +3,14 @@
     class="flex cursor-pointer btn"
     :class="{ 'btn primary': isSelected }"
     @click="$emit('pick')"
-    @dblclick="$emit('edit')"
+    @contextmenu.prevent="$emit('edit')"
   >
-    <span>{{ label }}</span>
+    <span>{{ name }}</span>
   </div>
 </template>
 
 <script>
 export default {
-  props: ['label', 'isSelected'],
+  props: ['name', 'isSelected'],
 }
 </script>

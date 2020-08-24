@@ -1,11 +1,29 @@
 <template>
   <div class="border-l min-h-full p-2">
     <div class="grid grid-cols-2 gap-2">
-      <button class="btn primary col-span-2" v-on:click="scanports">
-        SCAN
-      </button>
-      <button class="btn primary col-span-2" v-on:click="initialize">
+      <button
+        class="btn primary col-span-2"
+        v-on:click="$store.dispatch('startMeasuring')"
+      >
         START
+      </button>
+      <button
+        class="btn primary col-span-2"
+        v-on:click="$store.dispatch('stopMeasuring')"
+      >
+        STOP
+      </button>
+      <button
+        class="btn primary col-span-2"
+        @click="$store.dispatch('calibrateDevices')"
+      >
+        Calibrate
+      </button>
+      <button
+        class="btn primary col-span-2"
+        @click="$store.dispatch('scanSerialPorts')"
+      >
+        Scan
       </button>
       <hr class="col-span-2" />
       <button @click="$store.commit('addToPlot', 'temperature')" class="btn">
@@ -88,7 +106,6 @@ export default {
 
       serial.list().then(ports => {
         for (let port of ports) {
-
           let match = Object.keys(DEVICE_MATCH).every(
             key => DEVICE_MATCH[key] === port[key]
           )

@@ -1,64 +1,81 @@
 const createTablesSafely = knex => tables => {
   const createTables = tables.map(({ name, schema }) => {
     return knex.schema.createTable(name, schema)
-  });
+  })
 
-  return Promise.all(createTables)
-    .catch(e => {
-      const dropTables = tables.map(({ name }) => {
-        return knex.schema.dropTableIfExists(name);
-      });
+  return Promise.all(createTables).catch(e => {
+    const dropTables = tables.map(({ name }) => {
+      return knex.schema.dropTableIfExists(name)
+    })
 
-      return Promise.all(dropTables).then(() => Promise.reject(e));
-    });
+    return Promise.all(dropTables).then(() => Promise.reject(e))
+  })
 }
 
-exports.up = function(knex, Promise) {
+exports.up = function(knex) {
   return createTablesSafely(knex)([
     {
-      name: "session",
+      name: 'session',
       schema(table) {
-        table.increments();
-        table.string('name');
-        table.timestamps();
+        table.increments()
+        table.string('name')
+        table.timestamps()
       },
     },
     {
-      name: "measurement",
+      name: 'measurement',
       schema(table) {
-        table.increments();
-        table.integer('session_id').unsigned().notNullable();
-        table.integer('device_id').unsigned().notNullable();
-        table.string('name');
-        table.timestamps();
+        table.increments()
+        table
+          .integer('session_id')
+          .unsigned()
+          .notNullable()
+        table
+          .integer('device_id')
+          .unsigned()
+          .notNullable()
+        table.string('name')
+        table.timestamps()
 
-        table.foreign('session_id').references('id').inTable('session');
-        table.foreign('device_id').references('id').inTable('device');
+        table
+          .foreign('session_id')
+          .references('id')
+          .inTable('session')
+        table
+          .foreign('device_id')
+          .references('id')
+          .inTable('device')
       },
     },
     {
-      name: "datapoint",
+      name: 'datapoint',
       schema(table) {
-        table.increments();
-        table.integer('measurement_id').unsigned().notNullable();
-        table.float('relative_time');
-        table.float('temperature');
-        table.float('frequency');
-        table.float('dissipation');
-        table.timestamps();
-    
-        table.foreign('measurement_id').references('id').inTable('measurement');
+        table.increments()
+        table
+          .integer('measurement_id')
+          .unsigned()
+          .notNullable()
+        table.float('relative_time')
+        table.float('temperature')
+        table.float('frequency')
+        table.float('dissipation')
+        table.timestamps()
+
+        table
+          .foreign('measurement_id')
+          .references('id')
+          .inTable('measurement')
       },
     },
     {
-      name: "device",
+      name: 'device',
       schema(table) {
-        table.increments();
-        table.string('dev_id');
-        table.string('name');
+        table.increments()
+        table.string('serial_number').unique()
+        table.string('name')
       },
     },
-  ]);
+  ])
 }
 
 // exports.up = function(knex, Promise) {
@@ -99,16 +116,16 @@ exports.up = function(knex, Promise) {
 //   })
 // }
 
-
 // TODO: create table for each measurement and for the whole "experiment". It's technically measurement, but it has to be different in names. So, one word (and table) for single frequency measurement and one word (and table) for one sample measurement.
 // Documentation could be found on internet.
 // http://knexjs.org/
 
-exports.down = function(knex, Promise) {
-  knex.schema.dropTable('session');
-  knex.schema.dropTable('measurement');
-  knex.schema.dropTable('datapoint');
-  knex.schema.dropTable('device');
-  return Promise.all(dropTables).then(() => Promise.reject(e));
+exports.down = function(knex) {
+  return Promise.all([
+    knex.schema.dropTable('session'),
+    knex.schema.dropTable('measurement'),
+    knex.schema.dropTable('datapoint'),
+    knex.schema.dropTable('device'),
+  ])
   // TODO: don't forget to add down rules for migration (eg. drop tables)
 }

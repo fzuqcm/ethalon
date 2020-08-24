@@ -5,7 +5,8 @@
   >
     <div class="bg-white shadow-xl border rounded p-8" style="width: 32rem">
       <slot />
-      <button class="btn primary mt-6" @click="$emit('close')">Close</button>
+      <!-- <button class="btn primary mt-6 mr-4" @click="$emit('ok')">OK</button> -->
+      <button class="btn mt-6" @click="$emit('close')">Close</button>
     </div>
   </div>
 </template>
