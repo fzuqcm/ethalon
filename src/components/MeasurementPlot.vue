@@ -5,6 +5,7 @@
 <script>
 import Plotly from 'plotly.js-dist'
 import _ from 'lodash'
+import { NORMAL_FONT_SIZE } from '@/store'
 
 export default {
   props: {
@@ -42,6 +43,9 @@ export default {
         return {
           ...deviceData,
           type: 'scatter',
+          line: {
+            width: this.$store.state.fontSize === NORMAL_FONT_SIZE ? 2 : 4,
+          },
         }
       }),
       {
