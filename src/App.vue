@@ -4,7 +4,15 @@
       <!-- <h3 class="text-center text-lg py-3">Devices</h3> -->
       <device-list />
     </div>
-    <div class="flex-1">
+    <div class="flex-1 relative">
+      <div v-if="logs.length > 0" class="absolute top-0 z-10">
+        <p class="btn px-2 py-1 mt-2"
+          v-for="log in logs"
+          :key="log.message + Math.random()"
+        >
+          {{ log.message }}
+        </p>
+      </div>
       <div class="grid grid-cols-2">
         <measurement-plot name="frequency" />
         <measurement-plot name="dissipation" />
@@ -58,7 +66,13 @@ export default {
     MeasurementPlot,
     FullModal,
   },
+  computed: {
+    logs() {
+      return this.$store.state.logs.filter(l => !l.isRead)
+    }
+  },
   mounted() {
+    this.$store.commit('log', 'Application has started')
     this.$store.dispatch('scanSerialPorts')
   },
 }

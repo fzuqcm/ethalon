@@ -11,6 +11,8 @@ const dialog = remote.dialog
 
 Vue.use(Vuex)
 
+const NOTIFICATION_TIMEOUT = 3000
+
 async function measureDataPoint(device, { start, stop, step }) {
   const serial = window.serialport
   const parser = new serial.parsers.Readline()
@@ -78,6 +80,7 @@ const createDeviceTemplate = () => {
 
 export default new Vuex.Store({
   state: {
+    logs: [],
     devices: [],
     dataPoints: [],
     areAllDevicesSelected: true,
@@ -92,6 +95,19 @@ export default new Vuex.Store({
     },
     setMeasuring(state, isMeasuring) {
       state.isMeasuring = isMeasuring
+    },
+    log(state, message) {
+      const entry = {
+        type: 'info',
+        isRead: false,
+        message,
+      }
+
+      state.logs.push(entry)
+
+      setTimeout(() => {
+        entry.isRead = true
+      }, NOTIFICATION_TIMEOUT)
     },
     selectAllDevices(state) {
       state.areAllDevicesSelected = !state.areAllDevicesSelected
@@ -158,6 +174,7 @@ export default new Vuex.Store({
 
         devices.sort((a, b) => a.name > b.name)
         context.commit('setDevices', devices)
+        context.commit('log', 'Scan was completed')
       })
     },
     async saveDevice(context) {
@@ -172,7 +189,10 @@ export default new Vuex.Store({
         })
 
       context.commit('setEditedDevice', null)
-      // context.state.devices.sort((a, b) => a.name < b.name)
+      context.commit(
+        'log',
+        `Device ${context.state.editedDevice.name} has been saved`
+      )
     },
     async calibrateDevices(context) {
       const message = {
@@ -188,20 +208,23 @@ export default new Vuex.Store({
       }
 
       context.commit('setDevices', [...context.state.devices])
+      context.commit('log', 'All devices has been calibrated')
     },
     async startMeasuring(context) {
       for (const device of context.state.devices) {
         if (device.calibratedFrequency === 0) {
-          alert(`Device ${device.name} is not calibrated`)
+          context.commit('log', `Device ${device.name} is not calibrated`)
           return
         }
       }
 
       context.commit('setMeasuring', true)
+      context.commit('log', 'Measuring has been started')
       context.dispatch('measure')
     },
     async stopMeasuring(context) {
       context.commit('setMeasuring', false)
+      context.commit('log', 'Measuring has been stopped')
     },
     async measure(context) {
       const promises = []
@@ -212,6 +235,7 @@ export default new Vuex.Store({
           stop: freq + 10 ** 5,
           step: 40,
         }
+
         promises.push(measureDataPoint(device, message))
       }
 
@@ -268,11 +292,16 @@ export default new Vuex.Store({
         dialog
           .showSaveDialog({
             defaultPath:
-              moment().format('YYYY-MMM-DD_HH-mm-ss') + '_fundamental.csv',
+              moment().format('YYYY-MM-DD_HH-mm-ss') + '_fundamental.csv',
           })
           .then(({ filePath }) => {
             console.log(filePath)
             fs.writeFileSync(filePath, csvContent, 'utf-8')
+
+            context.commit('log', 'Export was saved to ' + filePath)
+          })
+          .catch(() => {
+            context.commit('log', 'Export was NOT saved')
           })
       }
     },
@@ -299,9 +328,15 @@ export default new Vuex.Store({
         }
       })
 
+      let startedAt = null
       for (const dataPoint of state.dataPoints) {
+        if (!startedAt) {
+          startedAt = dataPoint.timestamp
+        }
         for (const i in dataPoint.devices) {
-          devices[i].x.push(dataPoint.timestamp.format('HH:mm:ss.SSS'))
+          devices[i].x.push(
+            moment(dataPoint.timestamp - startedAt).format('X.SSS')
+          )
           devices[i].y.push(dataPoint.devices[i][plotName])
         }
       }
