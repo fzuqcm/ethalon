@@ -1,17 +1,22 @@
 <template>
   <div id="app" class="flex min-h-screen">
-    <div class="w-64">
-      <!-- <h3 class="text-center text-lg py-3">Devices</h3> -->
+    <div class="w-48">
       <device-list />
     </div>
     <div class="flex-1 relative">
-      <div v-if="logs.length > 0" class="absolute top-0 z-10">
-        <p class="btn px-2 py-1 mt-2"
+      <div v-if="logs.length > 0" class="absolute top-0 z-10 w-full">
+        <button
+          class="btn px-2 py-1 mt-2 mx-auto block text-left"
+          style="width: 24rem"
           v-for="log in logs"
-          :key="log.message + Math.random()"
+          :key="log.id"
+          @click="log.isRead = true"
         >
+          <span class="bg-blue-500 rounded px-1 text-sm">{{
+            log.type | upper
+          }}</span>
           {{ log.message }}
-        </p>
+        </button>
       </div>
       <div class="grid grid-cols-2">
         <measurement-plot name="frequency" />
@@ -20,8 +25,7 @@
         <measurement-plot name="temperature" />
       </div>
     </div>
-    <div class="w-64">
-      <!-- <h3 class="text-center text-lg py-3">Actions</h3> -->
+    <div class="w-48">
       <device-actions />
     </div>
     <full-modal
@@ -69,7 +73,12 @@ export default {
   computed: {
     logs() {
       return this.$store.state.logs.filter(l => !l.isRead)
-    }
+    },
+  },
+  filters: {
+    upper(text) {
+      return text.toUpperCase()
+    },
   },
   mounted() {
     this.$store.commit('log', 'Application has started')

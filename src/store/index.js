@@ -11,7 +11,10 @@ const dialog = remote.dialog
 
 Vue.use(Vuex)
 
-const NOTIFICATION_TIMEOUT = 3000
+export const NOTIFICATION_TIMEOUT = 3000
+export const CSV_DELIMITER = ','
+export const BIG_FONT_SIZE = 24
+export const NORMAL_FONT_SIZE = 16
 
 async function measureDataPoint(device, { start, stop, step }) {
   const serial = window.serialport
@@ -61,19 +64,12 @@ const createDeviceTemplate = () => {
     path: '',
     serialNumber: '',
     isSelected: true,
-    isMeasuring: false,
     calibratedFrequency: 0,
     plots: {
       phase: true,
       frequency: true,
       dissipation: true,
       temperature: true,
-    },
-    datapoints: {
-      phase: [],
-      frequency: [],
-      dissipation: [],
-      temperature: [],
     },
   }
 }
@@ -85,8 +81,18 @@ export default new Vuex.Store({
     dataPoints: [],
     areAllDevicesSelected: true,
     editedDevice: null,
+    fontSize: NORMAL_FONT_SIZE,
   },
   mutations: {
+    toggleFontSize(state) {
+      if (state.fontSize === NORMAL_FONT_SIZE) {
+        state.fontSize = BIG_FONT_SIZE
+      } else {
+        state.fontSize = NORMAL_FONT_SIZE
+      }
+
+      document.documentElement.style.fontSize = state.fontSize + 'px'
+    },
     setDevices(state, devices) {
       state.devices = devices
     },
@@ -100,6 +106,7 @@ export default new Vuex.Store({
       const entry = {
         type: 'info',
         isRead: false,
+        id: _.uniqueId(),
         message,
       }
 
@@ -248,8 +255,6 @@ export default new Vuex.Store({
       })
     },
     async exportMeasurements(context) {
-      const CSV_DELIMITER = ','
-
       if (!context.state.isMeasuring) {
         const rows = []
         let cols = ['Date', 'Time', 'Relative time']
@@ -303,21 +308,17 @@ export default new Vuex.Store({
           .catch(() => {
             context.commit('log', 'Export was NOT saved')
           })
+      } else {
+        context.commit(
+          'log',
+          'Export was not initialized due to active measurement'
+        )
       }
     },
   },
   getters: {
     devices: state => {
       return state.devices
-    },
-    deviceByPath: state => path => {
-      return state.devices.find(device => device.path === path)
-    },
-    devicesInPlot: state => plotName => {
-      return state.devices.filter(device => device.plots[plotName])
-    },
-    devicesDatapoints: state => plotName => {
-      return state.devices.filter(device => device.datapoints[plotName])
     },
     getPlotByName: state => plotName => {
       const devices = state.devices.map(device => {
@@ -343,7 +344,6 @@ export default new Vuex.Store({
 
       return devices
     },
-    measuringDevices: state => state.devices.filter(d => d.isMeasuring),
     selectedDevices: state => {
       return state.devices.filter(d => d.isSelected)
     },

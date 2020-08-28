@@ -17,24 +17,18 @@ export default {
     id() {
       return this.name + '-plot'
     },
-    devicesInPlot() {
-      return this.$store.getters.devicesInPlot(this.name)
-    },
-    devicesDatapoints() {
-      return this.$store.getters.devicesDatapoints(this.name)
-    },
     plotData() {
       return this.$store.getters.getPlotByName(this.name)
     },
+    fontSize() {
+      return this.$store.state.fontSize
+    },
   },
   watch: {
-    devicesInPlot() {
-      this.$forceUpdate()
-    },
-    devicesDatapoints() {
-      this.$forceUpdate()
-    },
     plotData() {
+      this.$forceUpdate()
+    },
+    fontSize() {
       this.$forceUpdate()
     },
   },
@@ -52,7 +46,9 @@ export default {
       }),
       {
         title: _.upperFirst(this.name) + ' plot',
-      }
+        font: { size: this.$store.state.fontSize },
+      },
+      { responsive: true }
     )
   },
 }
