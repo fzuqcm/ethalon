@@ -9,7 +9,6 @@
         START
       </button>
       <button
-        v-else
         class="btn primary col-span-2"
         v-on:click="$store.dispatch('stopMeasuring')"
       >
@@ -34,8 +33,8 @@
         Scan
       </button>
       <hr class="col-span-2" />
-      <button @click="$store.commit('addToPlot', 'magnitude')" class="btn">
-        + <br />magnitude
+      <button @click="$store.commit('addToPlot', 'frequency')" class="btn">
+        + <br />frequency
       </button>
       <button @click="$store.commit('addToPlot', 'dissipation')" class="btn">
         + <br />dissipation
@@ -47,8 +46,8 @@
         + <br />temperature
       </button>
       <hr class="col-span-2" />
-      <button class="btn" @click="$store.commit('removeFromPlot', 'magnitude')">
-        - <br />magnitude
+      <button class="btn" @click="$store.commit('removeFromPlot', 'frequency')">
+        - <br />frequency
       </button>
       <button
         @click="$store.commit('removeFromPlot', 'dissipation')"
@@ -83,23 +82,23 @@ const DEVICE_TEMPLATE = {
   running: false,
   plots: {
     phase: true,
-    magnitude: true,
+    frequency: true,
     dissipation: true,
     temperature: true,
   },
   datapoints: {
     phase: [],
-    magnitude: [],
+    frequency: [],
     dissipation: [],
     temperature: [],
   },
 }
 
-const DATA_1_KEY = 'magnitude'
+const DATA_1_KEY = 'frequency'
 const DATA_2_KEY = 'phase'
 
 const DATAPOINT_TEMPLATE = {
-  magnitude: null,
+  frequency: null,
   phase: null,
   dissipation: null,
   temperature: null,

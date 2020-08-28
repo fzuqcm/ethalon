@@ -23,12 +23,18 @@ export default {
     devicesDatapoints() {
       return this.$store.getters.devicesDatapoints(this.name)
     },
+    plotData() {
+      return this.$store.getters.getPlotByName(this.name)
+    },
   },
   watch: {
     devicesInPlot() {
       this.$forceUpdate()
     },
     devicesDatapoints() {
+      this.$forceUpdate()
+    },
+    plotData() {
       this.$forceUpdate()
     },
   },
@@ -38,14 +44,10 @@ export default {
   updated() {
     Plotly.newPlot(
       this.id,
-      this.devicesInPlot.map(device => {
-        const data = device.datapoints[this.name]
-        console.log(`${device.name} - ${this.name}:`, data)
+      this.plotData.map(deviceData => {
         return {
-          x: Object.keys(data),
-          y: data,
+          ...deviceData,
           type: 'scatter',
-          name: device.name,
         }
       }),
       {

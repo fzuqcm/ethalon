@@ -1,0 +1,4 @@
+Date,Time,Relative_time,QCM_6_temperature,QCM_6_frequency,QCM_6_dissipation,QCM_1_temperature,QCM_1_frequency,QCM_1_dissipation
+2020-08-28,19:05:37.309,00.000,31.44,9978080,0,29.13,10005760,0
+2020-08-28,19:05:43.970,Invalid date,31.44,9978040,0,29.06,10005720,0
+2020-08-28,19:05:50.621,Invalid date,31.44,9978040,0,29.13,10005760,0

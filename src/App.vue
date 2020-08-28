@@ -6,7 +6,7 @@
     </div>
     <div class="flex-1">
       <div class="grid grid-cols-2">
-        <measurement-plot name="magnitude" />
+        <measurement-plot name="frequency" />
         <measurement-plot name="dissipation" />
         <measurement-plot name="phase" />
         <measurement-plot name="temperature" />
