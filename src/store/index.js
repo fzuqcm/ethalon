@@ -2,6 +2,12 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import { knex } from '../main'
 import _ from 'lodash'
+import { remote } from 'electron'
+// import { dialog } from 'electron'
+import fs from 'fs'
+import moment from 'moment'
+
+const dialog = remote.dialog
 
 Vue.use(Vuex)
 
@@ -31,7 +37,7 @@ async function measureDataPoint(device, message) {
     const bufferPhase = []
 
     parser.on('data', data => {
-      console.log(data)
+      // console.log(data)
       const point = data.split(';')
       if (data.includes('s')) {
         port.close()
@@ -49,25 +55,27 @@ async function measureDataPoint(device, message) {
   })
 }
 
-const DEVICE_TEMPLATE = {
-  name: '',
-  path: '',
-  serialNumber: '',
-  isSelected: true,
-  isMeasuring: false,
-  calibratedFrequency: 0,
-  plots: {
-    phase: true,
-    magnitude: true,
-    dissipation: true,
-    temperature: true,
-  },
-  datapoints: {
-    phase: [],
-    magnitude: [],
-    dissipation: [],
-    temperature: [],
-  },
+const createDeviceTemplate = () => {
+  return {
+    name: '',
+    path: '',
+    serialNumber: '',
+    isSelected: true,
+    isMeasuring: false,
+    calibratedFrequency: 0,
+    plots: {
+      phase: true,
+      magnitude: true,
+      dissipation: true,
+      temperature: true,
+    },
+    datapoints: {
+      phase: [],
+      magnitude: [],
+      dissipation: [],
+      temperature: [],
+    },
+  }
 }
 
 export default new Vuex.Store({
@@ -85,6 +93,9 @@ export default new Vuex.Store({
     },
     setEditedDevice(state, editedDevice) {
       state.editedDevice = editedDevice
+    },
+    setMeasuring(state, isMeasuring) {
+      state.isMeasuring = isMeasuring
     },
     tagRunning(state, devicePath) {
       state.devices.find(device => device.path === devicePath).running = true
@@ -109,19 +120,22 @@ export default new Vuex.Store({
         }
       })
     },
-    addDataPoints(state, payload) {
-      const device = payload.device
-      const buffer = payload.buffer
+    addDataPoints(state, { dataPoint, device }) {
+      // const device = payload.device
+      // const buffer = payload.buffer
 
-      console.log(
-        `Adding ${buffer.length} datapoints to ${payload.device.path}`
-      )
-      for (let datapoint of buffer) {
-        for (let key of ['phase', 'magnitude', 'dissipation', 'temperature']) {
-          if (datapoint[key] == null) continue
-          device.datapoints[key].push(datapoint[key])
-        }
+      // console.log(
+      //   `Adding ${buffer.length} datapoints to ${device.path}`
+      // )
+      console.log(`Device ${device.name} has new data point`, dataPoint)
+      for (let key of ['phase', 'magnitude', 'dissipation', 'temperature']) {
+        if (dataPoint[key] == null) continue
+        device.datapoints[key].push(dataPoint[key])
       }
+      // device.datapoints.magnitude.push(res.magnitude)
+      // device.datapoints.phase.push(res.phase)
+      // device.datapoints.temperature.push(res.temperature)
+      // device.datapoints.dissipation.push(res.dissipation)
     },
   },
   actions: {
@@ -137,7 +151,7 @@ export default new Vuex.Store({
 
           let name = ''
           let row = await knex
-            .select(['name'])
+            .select(['name', 'serial_number'])
             .from('device')
             .where('serial_number', port.serialNumber)
             .first()
@@ -153,8 +167,9 @@ export default new Vuex.Store({
           }
 
           devices.push({
-            ...DEVICE_TEMPLATE,
+            ...createDeviceTemplate(),
             path: port.path,
+            serialNumber: port.serialNumber,
             name,
           })
 
@@ -171,18 +186,19 @@ export default new Vuex.Store({
         return
       }
 
-      await knex('device').update({
-        name: context.state.editedDevice.name,
-      })
+      await knex('device')
+        .where('serial_number', context.state.editedDevice.serialNumber)
+        .update({
+          name: context.state.editedDevice.name,
+        })
 
       context.commit('setEditedDevice', null)
-      context.state.devices.sort((a, b) => a.name > b.name)
-      // context.dispatch('scanSerialPorts')
+      // context.state.devices.sort((a, b) => a.name < b.name)
     },
     async calibrateDevices(context) {
       const MESSAGE = `${10 ** 7 - 10 ** 5};${10 ** 7 + 10 ** 5};${10 ** 3}\n`
 
-      for (const device of context.getters.selectedDevices) {
+      for (const device of context.state.devices) {
         const dataPoint = await measureDataPoint(device, MESSAGE)
         console.log(dataPoint)
         device.calibratedFrequency = 10006000
@@ -191,39 +207,63 @@ export default new Vuex.Store({
       context.commit('setDevices', [...context.state.devices])
     },
     async startMeasuring(context) {
-      for (const device of context.getters.selectedDevices) {
+      for (const device of context.state.devices) {
         if (device.calibratedFrequency === 0) {
           alert(`Device ${device.name} is not calibrated`)
           return
         }
-        device.isMeasuring = true
       }
 
-      context.commit('setDevices', [...context.state.devices])
+      context.commit('setMeasuring', true)
       context.dispatch('measure')
     },
-    async stopMeasuring(context) {
-      for (const device of context.getters.selectedDevices) {
-        device.isMeasuring = false
-      }
+    async exportMeasurements(context) {
+      if (!context.state.isMeasuring) {
+        let csvContent = 'Date,Time,Relative_Time'
+        for (const device of context.state.devices) {
+          for (const x of [
+            'temperature',
+            'resonance frequency',
+            'dissipation',
+          ]) {
+            csvContent += `,${device.name}_${x}`.replace(' ', '_')
+          }
+        }
 
-      context.commit('setDevices', [...context.state.devices])
+        dialog
+          .showSaveDialog({
+            defaultPath:
+              moment().format('YYYY-MMM-DD_HH-mm-ss') + '_fundamental.csv',
+          })
+          .then(({ filePath }) => {
+            console.log(filePath)
+            fs.writeFileSync(filePath, csvContent, 'utf-8')
+          })
+      }
+    },
+    async stopMeasuring(context) {
+      context.commit('setMeasuring', false)
     },
     async measure(context) {
-      for (const device of context.getters.measuringDevices) {
+      const promises = []
+      for (const device of context.state.devices) {
         const freq = device.calibratedFrequency
         const message = `${freq - 10 ** 5};${freq + 10 ** 5};40\n`
-        measureDataPoint(device, message).then(res => {
-          device.datapoints.magnitude.push(res.magnitude)
-          device.datapoints.phase.push(res.phase)
-          device.datapoints.temperature.push(res.temperature)
-          device.datapoints.dissipation.push(res.dissipation)
-
-          if (context.getters.measuringDevices.length > 0) {
-            context.dispatch('measure')
-          }
-        })
+        promises.push(measureDataPoint(device, message))
       }
+
+      Promise.all(promises).then(values => {
+        for (const i in values) {
+          context.commit('addDataPoints', {
+            dataPoint: values[i],
+            device: context.state.devices[i],
+          })
+        }
+
+        if (context.state.isMeasuring) {
+          context.dispatch('measure')
+        }
+      })
     },
   },
   getters: {

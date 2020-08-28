@@ -1,29 +1,23 @@
 <template>
-  <div class="border-r min-h-full">
+  <div class="min-h-full">
     <div class="p-2 grid grid-col-1 gap-2">
-      <device-list-item
-        name="Select all"
-        :isSelected="$store.state.areAllDevicesSelected"
-        @pick="$store.commit('selectAllDevices')"
-      />
-      <device-list-item
+      <div
+        class="flex cursor-pointer btn"
+        :class="{ 'btn primary': $store.state.areAllDevicesSelected }"
+        @click="$store.commit('selectAllDevices')"
+      >
+        <span>Select all</span>
+      </div>
+      <div
         v-for="d in $store.state.devices"
         :key="d.serialNumber"
-        :name="d.name"
-        :isSelected="d.isSelected"
-        @pick="d.isSelected = !d.isSelected"
-        @edit="$store.commit('setEditedDevice', d)"
-      />
+        class="flex cursor-pointer btn"
+        :class="{ 'btn primary': d.isSelected }"
+        @click="d.isSelected = !d.isSelected"
+        @contextmenu.prevent="$store.commit('setEditedDevice', d)"
+      >
+        <span>{{ d.name }}</span>
+      </div>
     </div>
   </div>
 </template>
-
-<script>
-import DeviceListItem from './DeviceListItem.vue'
-
-export default {
-  components: {
-    DeviceListItem,
-  },
-}
-</script>

@@ -40,11 +40,12 @@ export default {
       this.id,
       this.devicesInPlot.map(device => {
         const data = device.datapoints[this.name]
+        console.log(`${device.name} - ${this.name}:`, data)
         return {
           x: Object.keys(data),
           y: data,
           type: 'scatter',
-          name: device.label,
+          name: device.name,
         }
       }),
       {
