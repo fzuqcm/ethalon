@@ -31,6 +31,7 @@
     <full-modal
       v-if="$store.state.editedDevice !== null"
       @close="$store.commit('setEditedDevice', null)"
+      @ok="$store.dispatch('saveDevice')"
     >
       <form @submit.prevent>
         <label class="label">

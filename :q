@@ -1,0 +1,30 @@
+[1mdiff --git a/dev.sqlite3 b/dev.sqlite3[m
+[1mindex 9f23a47..314b1ba 100644[m
+Binary files a/dev.sqlite3 and b/dev.sqlite3 differ
+[1mdiff --git a/src/App.vue b/src/App.vue[m
+[1mindex 088aee1..bb01136 100644[m
+[1m--- a/src/App.vue[m
+[1m+++ b/src/App.vue[m
+[36m@@ -31,6 +31,7 @@[m
+     <full-modal[m
+       v-if="$store.state.editedDevice !== null"[m
+       @close="$store.commit('setEditedDevice', null)"[m
+[32m+[m[32m      @ok="$store.dispatch('saveDevice')"[m
+     >[m
+       <form @submit.prevent>[m
+         <label class="label">[m
+[1mdiff --git a/src/store/index.js b/src/store/index.js[m
+[1mindex fb8554d..300605e 100644[m
+[1m--- a/src/store/index.js[m
+[1m+++ b/src/store/index.js[m
+[36m@@ -238,8 +238,8 @@[m [mexport default new Vuex.Store({[m
+       for (const device of context.state.devices) {[m
+         const freq = device.calibratedFrequency[m
+         const message = {[m
+[31m-          start: freq - 10 ** 5,[m
+[31m-          stop: freq + 10 ** 5,[m
+[32m+[m[32m          start: freq - 10 ** 4,[m
+[32m+[m[32m          stop: freq + 10 ** 4,[m
+           step: 40,[m
+         }[m
+ [m

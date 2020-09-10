@@ -238,8 +238,8 @@ export default new Vuex.Store({
       for (const device of context.state.devices) {
         const freq = device.calibratedFrequency
         const message = {
-          start: freq - 10 ** 5,
-          stop: freq + 10 ** 5,
+          start: freq - 10 ** 4,
+          stop: freq + 10 ** 4,
           step: 40,
         }
 
