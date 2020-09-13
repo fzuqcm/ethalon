@@ -5,6 +5,7 @@ import _ from 'lodash'
 import { remote } from 'electron'
 // import { dialog } from 'electron'
 import fs from 'fs'
+import path from 'path'
 import moment from 'moment'
 
 const dialog = remote.dialog
@@ -12,43 +13,80 @@ const dialog = remote.dialog
 Vue.use(Vuex)
 
 export const NOTIFICATION_TIMEOUT = 3000
+export const SIMULATION_TIMEOUT = 600
 export const CSV_DELIMITER = ','
 export const BIG_FONT_SIZE = 24
 export const NORMAL_FONT_SIZE = 16
+export const DISSIPATION_PERCENT = 0.707
+export const CALIBRATION_MESSAGE = {
+  start: 10 ** 7 - 10 ** 5,
+  stop: 10 ** 7 + 10 ** 5,
+  step: 10 ** 3,
+}
 
 async function measureDataPoint(device, { start, stop, step }) {
-  const serial = window.serialport
-  const parser = new serial.parsers.Readline()
-  const port = new serial(device.path, { baudRate: 115200 })
+  device.start(start, stop, step)
 
-  port.write(`${start};${stop};${step}\n`, function(err) {
-    if (err) {
-      return console.log('Error on write: ', err.message)
-    }
-  })
-
-  port.pipe(parser)
+  const getFreq = index => start + step * index
 
   return new Promise(resolve => {
     const bufferMagnitude = []
     const bufferPhase = []
 
-    parser.on('data', data => {
+    device.data(data => {
       const point = data.split(';')
 
       if (data.includes('s')) {
-        port.close()
+        device.stop()
 
         const maxMagnitude = _.max(bufferMagnitude)
         const maxMagnitudeIndex = bufferMagnitude.indexOf(maxMagnitude)
         const phase = _.toSafeInteger(bufferPhase[maxMagnitudeIndex])
         const frequency = start + step * maxMagnitudeIndex
 
+        let minIndex = maxMagnitudeIndex
+        let maxIndex = maxMagnitudeIndex
+        let m = 0
+        let c = 0
+        let minLeading = 0
+        let maxLeading = 0
+
+        while (bufferMagnitude[minIndex] > DISSIPATION_PERCENT * maxMagnitude) {
+          if (minIndex < 1) {
+            break
+          }
+
+          minIndex = minIndex - 1
+        }
+
+        m =
+          (bufferMagnitude[minIndex + 1] - bufferMagnitude[minIndex]) /
+          (getFreq(minIndex + 1) - getFreq(minIndex))
+        c = bufferMagnitude[minIndex] - getFreq(minIndex) * m
+        minLeading = (DISSIPATION_PERCENT * maxMagnitude - c) / m
+
+        while (bufferMagnitude[maxIndex] > DISSIPATION_PERCENT * maxMagnitude) {
+          if (maxIndex >= bufferMagnitude.length) {
+            break
+          }
+
+          maxIndex = maxIndex + 1
+        }
+
+        m =
+          (bufferMagnitude[maxIndex - 1] - bufferMagnitude[maxIndex]) /
+          (getFreq(maxIndex - 1) - getFreq(maxIndex))
+        c = bufferMagnitude[maxIndex] - getFreq(maxIndex) * m
+        maxLeading = (DISSIPATION_PERCENT * maxMagnitude - c) / m
+
+        let bandwidth = Math.abs(maxLeading - minLeading)
+        let qualityFactor = getFreq(maxMagnitudeIndex) / bandwidth
+
         return resolve({
           frequency,
           phase,
           temperature: Number(point[0]),
-          dissipation: 0,
+          dissipation: 1 / qualityFactor,
         })
       }
 
@@ -58,19 +96,118 @@ async function measureDataPoint(device, { start, stop, step }) {
   })
 }
 
-const createDeviceTemplate = () => {
-  return {
-    name: '',
-    path: '',
-    serialNumber: '',
-    isSelected: true,
-    calibratedFrequency: 0,
-    plots: {
+class Device {
+  constructor(name, path, serialNumber) {
+    this.name = name
+    this.path = path
+    this.serialNumber = serialNumber
+    this.isSelected = true
+    this.calibratedFrequency = 0
+    this.plots = {
       phase: true,
       frequency: true,
       dissipation: true,
       temperature: true,
-    },
+    }
+  }
+
+  start() {
+    throw new Error('Not implemented')
+  }
+
+  data() {
+    throw new Error('Not implemented')
+  }
+
+  stop() {
+    throw new Error('Not implemented')
+  }
+}
+
+class SerialDevice extends Device {
+  constructor(...props) {
+    super(...props)
+    const serial = window.serialport
+
+    this.parser = new serial.parsers.Readline()
+    this.port = new serial(this.device.path, { baudRate: 115200 })
+    this.port.pipe(this.parser)
+  }
+
+  start(start, stop, step) {
+    this.port.write(`${start};${stop};${step}\n`, function(err) {
+      if (err) {
+        return console.log('Error on write: ', err.message)
+      }
+    })
+  }
+
+  data(callback) {
+    this.parser.on('data', callback)
+  }
+
+  stop() {
+    this.port.close()
+  }
+
+  async calibrate() {
+    const dataPoint = await measureDataPoint(this, CALIBRATION_MESSAGE)
+
+    this.calibratedFrequency = dataPoint.frequency
+  }
+}
+
+class SimulatedDevice extends Device {
+  constructor(...props) {
+    super(...props)
+    this.testFiles = fs.readdirSync(this.path)
+    this.testFiles.sort()
+    this.counter = 0
+    this.calibratedFrequency = 9983500
+  }
+
+  start() {
+    // this.port.write(`${start};${stop};${step}\n`, function(err) {
+    //   if (err) {
+    //     return console.log('Error on write: ', err.message)
+    //   }
+    // })
+  }
+
+  data(callback) {
+    const fsPath = path.join(this.path, this.testFiles[this.counter++])
+    // console.log(fsPath)
+    const testFile = fs.readFileSync(fsPath, { encoding: 'utf-8' })
+    // console.log(testFile)
+    const testValues = testFile.split('\n')
+
+    for (const testValue of testValues) {
+      if (testValue.includes('s')) {
+        setTimeout(() => callback(testValue), SIMULATION_TIMEOUT)
+        return
+      }
+      callback(testValue)
+    }
+
+    // let counter = 0
+    // this.interval = setInterval(() => {
+    //   // console.log(testValues[counter])
+    //   callback(testValues[counter++])
+
+    //   if (counter >= testValues.length) {
+    //     console.log('Something is broken in simulated device')
+    //   }
+    // }, SIMULATION_TIMEOUT)
+  }
+
+  stop() {
+    // clearInterval(this.interval)
+  }
+
+  async calibrate() {
+    await setTimeout(() => {
+      this.calibratedFrequency = 9983500
+    }, SIMULATION_TIMEOUT)
   }
 }
 
@@ -82,6 +219,8 @@ export default new Vuex.Store({
     areAllDevicesSelected: true,
     editedDevice: null,
     fontSize: NORMAL_FONT_SIZE,
+    showNote: false,
+    note: '',
   },
   mutations: {
     toggleFontSize(state) {
@@ -92,6 +231,12 @@ export default new Vuex.Store({
       }
 
       document.documentElement.style.fontSize = state.fontSize + 'px'
+    },
+    toggleShowNote(state) {
+      state.showNote = !state.showNote
+    },
+    setNote(state, note) {
+      state.note = note
     },
     setDevices(state, devices) {
       state.devices = devices
@@ -171,18 +316,19 @@ export default new Vuex.Store({
             name = row.name
           }
 
-          devices.push({
-            ...createDeviceTemplate(),
-            path: port.path,
-            serialNumber: port.serialNumber,
-            name,
-          })
+          devices.push(new SerialDevice(name, port.path, port.serialNumber))
         }
 
-        devices.sort((a, b) => a.name > b.name)
+        // devices.sort((a, b) => a.name > b.name)
         context.commit('setDevices', devices)
         context.commit('log', 'Scan was completed')
       })
+    },
+    async addSimulatedDevice(context) {
+      context.commit('setDevices', [
+        ...context.state.devices,
+        new SimulatedDevice('Simulated', 'test_outputs', 'simulation'),
+      ])
     },
     async saveDevice(context) {
       if (!context.state.editedDevice) {
@@ -202,16 +348,17 @@ export default new Vuex.Store({
       )
     },
     async calibrateDevices(context) {
-      const message = {
-        start: 10 ** 7 - 10 ** 5,
-        stop: 10 ** 7 + 10 ** 5,
-        step: 10 ** 3,
-      }
+      // const message = {
+      //   start: 10 ** 7 - 10 ** 5,
+      //   stop: 10 ** 7 + 10 ** 5,
+      //   step: 10 ** 3,
+      // }
 
       for (const device of context.state.devices) {
-        const dataPoint = await measureDataPoint(device, message)
+        await device.calibrate()
+        // const dataPoint = await measureDataPoint(device, message)
 
-        device.calibratedFrequency = dataPoint.frequency
+        // device.calibratedFrequency = dataPoint.frequency
       }
 
       context.commit('setDevices', [...context.state.devices])
@@ -219,7 +366,7 @@ export default new Vuex.Store({
     },
     async startMeasuring(context) {
       for (const device of context.state.devices) {
-        if (device.calibratedFrequency === 0) {
+        if (!device.calibratedFrequency) {
           context.commit('log', `Device ${device.name} is not calibrated`)
           return
         }
@@ -321,13 +468,20 @@ export default new Vuex.Store({
       return state.devices
     },
     getPlotByName: state => plotName => {
-      const devices = state.devices.map(device => {
-        return {
-          x: [],
-          y: [],
-          name: device.name,
-        }
-      })
+      // console.log(plotName)
+      const devices = state.devices
+        // .filter(device => device.plots[plotName])
+        .map(device => {
+          if (!device.plots[plotName]) {
+            return null
+          }
+
+          return {
+            x: [],
+            y: [],
+            name: device.name,
+          }
+        })
 
       let startedAt = null
       for (const dataPoint of state.dataPoints) {
@@ -335,6 +489,10 @@ export default new Vuex.Store({
           startedAt = dataPoint.timestamp
         }
         for (const i in dataPoint.devices) {
+          if (!devices[i]) {
+            continue
+          }
+
           devices[i].x.push(
             moment(dataPoint.timestamp - startedAt).format('X.SSS')
           )

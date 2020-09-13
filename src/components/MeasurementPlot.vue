@@ -45,6 +45,7 @@ export default {
           type: 'scatter',
           line: {
             width: this.$store.state.fontSize === NORMAL_FONT_SIZE ? 2 : 4,
+            // shape: 'spline'
           },
         }
       }),
@@ -52,7 +53,7 @@ export default {
         title: _.upperFirst(this.name) + ' plot',
         font: { size: this.$store.state.fontSize },
       },
-      { responsive: true }
+      { responsive: true, showLegend: true }
     )
   },
 }

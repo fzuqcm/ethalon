@@ -1,0 +1,126 @@
+2020-04-26 11:41:28,233,INFO,[] Platform: Windows-10-10.0.18362-SP0
+2020-04-26 11:41:28,233,INFO,[] Path: C:\qcm\QCM1
+2020-04-26 11:41:28,233,INFO,[] Python version: 3.7.4
+2020-04-26 11:41:28,248,INFO,[] Application started
+2020-04-26 11:41:29,298,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-04-26 11:43:45,458,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-04-26 11:44:02,545,INFO,[] Clicked START
+2020-04-26 11:45:35,353,INFO,[] Running processes stopped...
+2020-04-26 11:45:35,353,INFO,[] Processes finished
+2020-04-26 11:45:42,277,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-04-26 11:46:18,136,INFO,[] Clicked START
+2020-04-26 11:46:59,520,INFO,[] Storing in: logged_data\2020-Apr-26_11-41-27_fundamental.csv
+2020-04-26 11:50:06,571,INFO,[] Clicked STOP
+2020-04-26 11:50:06,573,INFO,[] Running processes stopped...
+2020-04-26 11:50:06,573,INFO,[] Processes finished
+2020-04-26 11:50:33,960,INFO,[] Finishing Application...
+
+2020-04-26 11:50:33,961,INFO,[] Application closed
+
+2020-08-24 16:49:17,805,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-08-24 16:49:17,805,INFO,[] Path: C:\qcm\QCM1
+2020-08-24 16:49:17,805,INFO,[] Python version: 3.7.4
+2020-08-24 16:49:17,852,INFO,[] Application started
+2020-08-24 16:49:18,873,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-08-24 16:49:46,591,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-08-24 16:49:56,923,INFO,[] Clicked START
+2020-08-24 16:51:18,990,INFO,[] Running processes stopped...
+2020-08-24 16:51:18,990,INFO,[] Processes finished
+2020-08-24 16:52:03,603,INFO,[] Clicked START
+2020-08-24 16:53:25,914,INFO,[] Running processes stopped...
+2020-08-24 16:53:25,914,INFO,[] Processes finished
+2020-08-24 16:53:25,927,INFO,[] Running processes stopped...
+2020-08-24 16:53:25,927,INFO,[] Processes finished
+2020-08-24 16:53:36,429,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-08-24 16:54:37,248,INFO,[] Clicked START
+2020-08-24 16:55:22,494,INFO,[] Storing in: logged_data\2020-Aug-24_16-49-17_fundamental.csv
+2020-08-24 16:59:23,988,INFO,[] Clicked STOP
+2020-08-24 16:59:23,989,INFO,[] Running processes stopped...
+2020-08-24 16:59:23,989,INFO,[] Processes finished
+2020-08-24 16:59:41,747,INFO,[] Finishing Application...
+
+2020-08-24 16:59:41,747,INFO,[] Application closed
+
+2020-09-07 19:13:57,822,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-09-07 19:13:57,822,INFO,[] Path: C:\qcm\QCM1
+2020-09-07 19:13:57,823,INFO,[] Python version: 3.7.4
+2020-09-07 19:13:57,892,INFO,[] Application started
+2020-09-07 19:13:59,388,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-07 19:14:25,521,INFO,[] Finishing Application...
+
+2020-09-07 19:14:25,521,INFO,[] Application closed
+
+2020-09-07 21:08:00,802,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-09-07 21:08:00,803,INFO,[] Path: C:\qcm\QCM1
+2020-09-07 21:08:00,804,INFO,[] Python version: 3.7.4
+2020-09-07 21:08:00,930,INFO,[] Application started
+2020-09-07 21:08:03,431,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-07 21:08:29,649,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-09-07 21:08:40,142,INFO,[] Clicked START
+2020-09-07 21:10:04,086,INFO,[] Running processes stopped...
+2020-09-07 21:10:04,086,INFO,[] Processes finished
+2020-09-07 21:10:16,952,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-07 21:10:27,378,INFO,[] Clicked START
+2020-09-07 21:11:13,209,INFO,[] Storing in: logged_data\2020-Sep-07_21-07-59_fundamental.csv
+2020-09-07 21:11:51,228,INFO,[] Clicked STOP
+2020-09-07 21:11:51,229,INFO,[] Running processes stopped...
+2020-09-07 21:11:51,229,INFO,[] Processes finished
+2020-09-07 21:12:15,673,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-09-07 21:12:30,391,INFO,[] Clicked START
+2020-09-08 08:09:26,734,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-09-08 08:09:26,734,INFO,[] Path: C:\qcm\QCM1
+2020-09-08 08:09:26,735,INFO,[] Python version: 3.7.4
+2020-09-08 08:09:26,818,INFO,[] Application started
+2020-09-08 08:09:28,988,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-08 08:09:56,343,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-09-08 08:29:11,837,INFO,[] Clicked START
+2020-09-08 08:30:47,353,INFO,[] Running processes stopped...
+2020-09-08 08:30:47,354,INFO,[] Processes finished
+2020-09-08 09:01:47,778,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-08 09:01:58,148,INFO,[] Clicked START
+2020-09-08 09:02:43,375,INFO,[] Storing in: logged_data\2020-Sep-08_08-09-25_fundamental.csv
+2020-09-08 09:33:52,512,INFO,[] Clicked STOP
+2020-09-08 09:33:52,513,INFO,[] Running processes stopped...
+2020-09-08 09:33:52,513,INFO,[] Processes finished
+2020-09-08 09:33:59,212,INFO,[] Finishing Application...
+
+2020-09-08 09:33:59,212,INFO,[] Application closed
+
+2020-09-10 15:59:22,337,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-09-10 15:59:22,338,INFO,[] Path: C:\qcm\QCM1
+2020-09-10 15:59:22,338,INFO,[] Python version: 3.7.4
+2020-09-10 15:59:22,396,INFO,[] Application started
+2020-09-10 15:59:23,643,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-10 15:59:40,608,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-09-10 16:00:25,797,INFO,[] Clicked START
+2020-09-10 16:01:48,286,INFO,[] Running processes stopped...
+2020-09-10 16:01:48,287,INFO,[] Processes finished
+2020-09-10 16:02:01,334,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-10 16:02:11,681,INFO,[] Clicked START
+2020-09-10 16:02:57,126,INFO,[] Storing in: logged_data\2020-Sep-10_15-59-21_fundamental.csv
+2020-09-10 16:03:26,170,INFO,[] Clicked STOP
+2020-09-10 16:03:26,172,INFO,[] Running processes stopped...
+2020-09-10 16:03:26,173,INFO,[] Processes finished
+2020-09-10 16:11:27,724,INFO,[] Finishing Application...
+
+2020-09-10 16:11:27,726,INFO,[] Application closed
+
+2020-09-10 16:11:31,415,INFO,[] Platform: Windows-10-10.0.19041-SP0
+2020-09-10 16:11:31,415,INFO,[] Path: C:\qcm\QCM1
+2020-09-10 16:11:31,416,INFO,[] Python version: 3.7.4
+2020-09-10 16:11:31,430,INFO,[] Application started
+2020-09-10 16:11:32,365,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-10 16:11:46,448,INFO,[] Scanning the source: Calibration openQCM Q-1 Device
+2020-09-10 16:11:56,763,INFO,[] Clicked START
+2020-09-10 16:13:19,916,INFO,[] Running processes stopped...
+2020-09-10 16:13:19,916,INFO,[] Processes finished
+2020-09-10 16:13:28,901,INFO,[] Scanning the source: Measurement openQCM Q-1 Device
+2020-09-10 16:13:39,226,INFO,[] Clicked START
+2020-09-10 16:14:24,515,INFO,[] Storing in: logged_data\2020-Sep-10_16-11-31_fundamental.csv
+2020-09-10 18:32:53,158,INFO,[] Clicked STOP
+2020-09-10 18:32:53,160,INFO,[] Running processes stopped...
+2020-09-10 18:32:53,161,INFO,[] Processes finished
+2020-09-10 18:34:41,705,INFO,[] Finishing Application...
+
+2020-09-10 18:34:41,707,INFO,[] Application closed
+
