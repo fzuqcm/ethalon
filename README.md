@@ -10,7 +10,7 @@ cp .env.example .env
 
 ### Compiles and hot-reloads for development
 ```
-yarn eletron:serve
+yarn electron:serve
 ```
 
 ### Compiles and minifies for production
