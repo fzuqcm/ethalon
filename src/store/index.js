@@ -293,6 +293,7 @@ export default new Vuex.Store({
       const serial = window.serialport
 
       serial.list().then(async ports => {
+        console.log(ports)
         const devices = []
         for (const port of ports) {
           if (port.manufacturer !== 'Teensyduino') {
