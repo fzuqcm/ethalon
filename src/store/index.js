@@ -10,6 +10,7 @@ import moment from 'moment'
 
 const dialog = remote.dialog
 
+
 Vue.use(Vuex)
 
 export const NOTIFICATION_TIMEOUT = 3000
