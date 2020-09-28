@@ -7,9 +7,9 @@ import { remote } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import moment from 'moment'
+import { PythonShell } from 'python-shell'
 
 const dialog = remote.dialog
-
 
 Vue.use(Vuex)
 
@@ -39,6 +39,19 @@ async function measureDataPoint(device, { start, stop, step }) {
 
       if (data.includes('s')) {
         device.stop()
+
+        const jsonArg = {
+          magnitude: bufferMagnitude,
+          phase: bufferPhase,
+          start,
+          stop,
+          step,
+          // device.dataPoints
+        }
+        
+        PythonShell.run('run.py', {mode: 'json', args: []}, function(err, result) {
+          console.log(result)
+        })
 
         const maxMagnitude = _.max(bufferMagnitude)
         const maxMagnitudeIndex = bufferMagnitude.indexOf(maxMagnitude)

@@ -20,6 +20,7 @@
     "moment": "^2.27.0",
     "mssql": "^6.2.0",
     "plotly.js-dist": "^1.54.2",
+    "python-shell": "^2.0.2",
     "serialport": "^9.0.1",
     "sqlite3": "^5.0.0",
     "vue": "^2.6.11",
