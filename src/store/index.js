@@ -144,7 +144,7 @@ class SerialDevice extends Device {
     const serial = window.serialport
 
     this.parser = new serial.parsers.Readline()
-    this.port = new serial(this.device.path, { baudRate: 115200 })
+    this.port = new serial(this.path, { baudRate: 115200 })
     this.port.pipe(this.parser)
   }
 
