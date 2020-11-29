@@ -6,6 +6,7 @@
 ```
 yarn install
 cp .env.example .env
+yarn knex migrate:latest
 ```
 
 ### Compiles and hot-reloads for development
