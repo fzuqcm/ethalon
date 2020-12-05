@@ -1,12 +1,13 @@
 .DS_Store
 node_modules
 /dist
+app*.db*
+__pycache__/
+db.json
 
 # local env files
-# .env.local
-# .env.*.local
-.env
-
+.env.local
+.env.*.local
 
 # Log files
 npm-debug.log*
@@ -25,5 +26,3 @@ pnpm-debug.log*
 
 #Electron-builder output
 /dist_electron
-*.csv
-dev.sqlite3

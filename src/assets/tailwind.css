@@ -1,40 +1,9 @@
 @tailwind base;
 
-html {
-  @apply text-gray-700; 
+button {
+    @apply px-4 py-2 text-sm text-gray-700 hover:bg-gray-100;
 }
 
 @tailwind components;
-
-.btn {
-  @apply px-4 py-2 rounded bg-gray-500 text-white;
-}
-
-.btn:hover,
-.btn:focus {
-  @apply bg-gray-600;
-}
-
-.btn.primary {
-  @apply bg-blue-500;
-}
-
-.btn.primary:hover,
-.btn.primary:focus {
-  @apply bg-blue-600;
-}
-
-.input {
-  @apply block w-full border border-gray-500 rounded text-base py-2 px-4;
-}
-
-.input:hover,
-.input:focus {
-  @apply border-blue-500
-}
-
-.label {
-  @apply block mt-4 uppercase tracking-wide text-xs font-bold;
-}
 
 @tailwind utilities;

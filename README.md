@@ -1,26 +1,24 @@
-# qcm-app
+# qcm-vue2-ts
 
 ## Project setup
-
-### Install dependencies
 ```
-yarn install
-cp .env.example .env
-yarn knex migrate:latest
+npm install
 ```
 
 ### Compiles and hot-reloads for development
 ```
-yarn electron:serve
+npm run serve
 ```
 
 ### Compiles and minifies for production
 ```
-yarn electron:build
+npm run build
 ```
 
 ### Lints and fixes files
 ```
-yarn lint
+npm run lint
 ```
 
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).
