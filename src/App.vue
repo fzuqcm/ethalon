@@ -1,46 +1,49 @@
 <template>
-  <div id="app" class="flex min-h-screen">
-    <div class="w-48">
-      <the-device-list />
-    </div>
-    <div class="flex-1 relative">
-      <the-notifications />
-      <the-note />
-      <div class="grid grid-cols-2">
-        <measurement-plot name="frequency" />
-        <measurement-plot name="dissipation" />
-        <measurement-plot name="phase" />
-        <measurement-plot name="temperature" />
+  <div id="app">
+    <the-button-bar />
+    <div
+      v-if="$store.state.devices.length > 0"
+      class="my-10 grid grid-col-1 gap-10"
+    >
+      <data-plot name="freq" label="Frequency" />
+      <data-plot name="diss" label="Dissipation" />
+      <data-plot name="temp" label="Temperature" />
+      <div class="grid grid-cols-2 gap-4">
+        <device-plot
+          v-for="device in $store.state.devices"
+          :key="device.serial_number"
+          :device="device"
+        />
       </div>
     </div>
-    <div class="w-48">
-      <the-device-actions />
-    </div>
-    <the-edit-modal />
   </div>
 </template>
 
-<script>
-import TheDeviceList from './components/TheDeviceList.vue'
-import TheDeviceActions from './components/TheDeviceActions.vue'
-import MeasurementPlot from './components/MeasurementPlot.vue'
-import TheEditModal from './components/TheEditModal.vue'
-import TheNote from './components/TheNote.vue'
-import TheNotifications from './components/TheNotifications.vue'
+<script lang="ts">
+import Vue from 'vue'
+import { Device, MeasuredData } from './interfaces'
+import DataPlot from '@/components/DataPlot.vue'
+import TheButtonBar from '@/components/TheButtonBar.vue'
+import DevicePlot from '@/components/DevicePlot.vue'
 
-export default {
-  name: 'App',
+export default Vue.extend({
   components: {
-    TheDeviceList,
-    TheDeviceActions,
-    MeasurementPlot,
-    TheEditModal,
-    TheNote,
-    TheNotifications,
+    DataPlot,
+    TheButtonBar,
+    DevicePlot,
   },
-  mounted() {
-    this.$store.commit('log', 'Application has started')
-    this.$store.dispatch('scanSerialPorts')
+  sockets: {
+    measuredData: function (data: MeasuredData) {
+      this.$store.commit('processMeasuredData', data)
+    },
+    devices: function (rawDevices: Partial<Device>[]) {
+      this.$store.commit('setDevices', rawDevices)
+    },
   },
-}
+  methods: {
+    socketEmit(name: string) {
+      this.$socket.emit(name)
+    },
+  },
+})
 </script>
