@@ -1,24 +1,22 @@
 # qcm-vue2-ts
 
 ## Project setup
-```
+
+```sh
 npm install
 ```
 
-### Compiles and hot-reloads for development
-```
-npm run serve
+### Run development
+
+```sh
+python3 server/app.py
+npm run electron:serve
 ```
 
-### Compiles and minifies for production
-```
-npm run build
-```
+# Serial port permissions
 
-### Lints and fixes files
+```sh
+sudo usermod -a -G tty $USER
+sudo usermod -a -G dialout $USER
+sudo usermod -a -G uucp $USER
 ```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).

@@ -4,6 +4,7 @@ node_modules
 app*.db*
 __pycache__/
 db.json
+*.output
 
 # local env files
 .env.local

@@ -16,6 +16,7 @@
   "dependencies": {
     "dayjs": "^1.9.6",
     "lodash": "^4.17.20",
+    "tailwindcss": "^1.9.6",
     "uplot": "^1.4.4",
     "vue": "^2.6.11",
     "vue-socket.io": "^3.0.10",

@@ -18,6 +18,7 @@ export const seriesDevices = (devices: Device[]) => {
       ({
         label: device.name,
         stroke: COLORS[idx],
+        value: (self, val) => val
       } as Series)
   )
 }
