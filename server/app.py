@@ -20,8 +20,8 @@ DISSIPATION_PERCENT = 0.707
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-# socketio = SocketIO(app, cors_allowed_origins='*', engineio_logger=True)
-socketio = SocketIO(app, cors_allowed_origins='*')
+socketio = SocketIO(app, cors_allowed_origins='*', engineio_logger=True)
+# socketio = SocketIO(app, cors_allowed_origins='*')
 rng = np.random.default_rng()
 db = TinyDB('db.json')
 measurements = db.table('measurement')
