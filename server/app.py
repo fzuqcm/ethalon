@@ -72,6 +72,9 @@ def scan():
     Device = Query()
 
     for port in ports:
+        if port.manufacturer != 'Teensyduino':
+            continue
+
         sn = port.serial_number
         device = devices.get(Device.serialNumber == port.serial_number)
 
