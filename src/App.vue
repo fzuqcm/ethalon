@@ -33,10 +33,10 @@ export default Vue.extend({
     DevicePlot,
   },
   sockets: {
-    measuredData: function (data: MeasuredData) {
+    measuredData: function(data: MeasuredData) {
       this.$store.commit('processMeasuredData', data)
     },
-    devices: function (rawDevices: Partial<Device>[]) {
+    devices: function(rawDevices: Partial<Device>[]) {
       this.$store.commit('setDevices', rawDevices)
     },
   },

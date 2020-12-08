@@ -62,7 +62,7 @@ export default Vue.extend({
           },
           {
             label: this.label,
-            values: (self, vals) => vals
+            values: (self, vals) => vals,
           },
         ],
         scales: {
