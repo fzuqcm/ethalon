@@ -30,6 +30,10 @@ export default {
       this.$store.commit('setDevices', [])
       this.$socket.emit('scan')
     },
+    start() {
+      this.$store.commit('setIsPlotPaused', false)
+      this.$socket.emit('start')
+    },
   },
 }
 </script>

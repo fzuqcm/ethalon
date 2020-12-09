@@ -18,9 +18,11 @@ INTERVAL_HALF = 10**4 // 2
 INTERVAL_STEP = 40
 POLYFIT_COEFFICIENT = 0.95
 DISSIPATION_PERCENT = 0.707
-CSV_SEPARATOR = ';'
+CSV_SEPARATOR = ','
 DATE_SEPARATOR = '_'
+RAW_DATA_SEPARATOR = ';'
 OUTPUT_EXT = 'output'
+RAW_DATA_EXT = 'txt'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -139,17 +141,27 @@ def scan():
         'timestamp': stamp,
         'name': formatted_stamp,
         'devices': d_list,
-        'filename': '{}.{}'.format(formatted_stamp, OUTPUT_EXT)
+        'outputFile': '{}.{}'.format(formatted_stamp, OUTPUT_EXT),
+        'rawDataFile': '{}.{}'.format(formatted_stamp, RAW_DATA_EXT)
     }
     measurements.insert(session['measurement'])
 
-    # create empty export file
-    with open(session['measurement']['filename'], 'w') as f:
+    # create empty export files
+    with open(session['measurement']['outputFile'], 'w') as f:
         cols = ['Date', 'Time', 'Relative time']
         for d in session['devices']:
             cols.append('{} - temp'.format(d['name']))
             cols.append('{} - freq'.format(d['name']))
             cols.append('{} - diss'.format(d['name']))
+        f.write(CSV_SEPARATOR.join(cols) + '\n')
+
+    with open(session['measurement']['rawDataFile'], 'w') as f:
+        cols = ['Timestamp']
+        for d in session['devices']:
+            cols.append('{}_freq'.format(d['serialNumber']))
+            cols.append('{}_ampl'.format(d['serialNumber']))
+            cols.append('{}_phas'.format(d['serialNumber']))
+            cols.append('{}_temp'.format(d['serialNumber']))
         f.write(CSV_SEPARATOR.join(cols) + '\n')
 
     # send to client
@@ -320,6 +332,7 @@ def measure():
         if not session.get('measuring', False):
             return
 
+        # save output
         stamp = timestamp()
         first_stamp = session['firstStamp'] = session \
             .get('firstStamp', stamp)
@@ -336,17 +349,26 @@ def measure():
             cols.append(str(data['dataPoint']['temp']))
             cols.append(str(data['dataPoint']['freq']))
             cols.append(str(data['dataPoint']['diss']))
-        
-        with open(session['measurement']['filename'], 'a') as f:
-            f.write(CSV_SEPARATOR.join(cols) + '\n')
-            # deviceData = measurement['devicesData'][i]
-            # deviceData['freq'].append(data['dataPoint']['freq']),
-            # deviceData['diss'].append(data['dataPoint']['diss']),
-            # deviceData['temp'].append(data['dataPoint']['temp']),
-            # deviceData['measure'].append(data['measurePoints'])
 
-        # measurements.update(measurement, doc_ids=[measurement['id']])
-        # print(measurements.get(doc_id=measurement['id']), measurement['id'])
+        with open(session['measurement']['outputFile'], 'a') as f:
+            f.write(CSV_SEPARATOR.join(cols) + '\n')
+
+        # save raw data
+        cols = [str(stamp)]
+        for data in measured_data:
+            cols.append(RAW_DATA_SEPARATOR.join(
+                str(x) for x in data['measurePoints']['freq'])
+            )
+            cols.append(RAW_DATA_SEPARATOR.join(
+                str(x) for x in data['measurePoints']['ampl'])
+            )
+            cols.append(RAW_DATA_SEPARATOR.join(
+                str(x) for x in data['measurePoints']['phas'])
+            )
+            cols.append(str(data['dataPoint']['temp']))
+
+        with open(session['measurement']['rawDataFile'], 'a') as f:
+            f.write(CSV_SEPARATOR.join(cols) + '\n')
 
         emit('measuredData', {
              'forDevices': measured_data,

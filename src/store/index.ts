@@ -35,6 +35,9 @@ export default new Vuex.Store({
     toggleIsPlotPaused(state) {
       state.isPlotPaused = !state.isPlotPaused
     },
+    setIsPlotPaused(state, isPlotPaused) {
+      state.isPlotPaused = isPlotPaused
+    },
     setDevices(state, devices: Partial<Device>[]) {
       devices.forEach(deviceFactory)
       state.devices = devices as Device[]
