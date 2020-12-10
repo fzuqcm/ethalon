@@ -99,7 +99,7 @@ def scan():
     for port in ports:
         # filter devices on serial ports
         # TODO: propably not sufficient, change to more robust check
-        if port.manufacturer != 'Teensyduino':
+        if port.manufacturer != 'Microsoft' and port.manufacturer != 'Teensyduino':
             continue
 
         sn = port.serial_number

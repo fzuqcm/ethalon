@@ -1,5 +1,5 @@
 <template>
-  <div :id="`plot-${device.serial_number}`"></div>
+  <div :id="`plot-${device.serialNumber}`"></div>
 </template>
 
 <script lang="ts">
@@ -41,7 +41,8 @@ export default Vue.extend({
   },
   methods: {
     renderPlot() {
-      const sn = this.device.serial_number
+      const sn = this.device.serialNumber
+  
       const el = document.getElementById('plot-' + sn) as HTMLElement
       this.plot = new uPlot(
         {
