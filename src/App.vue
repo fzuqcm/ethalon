@@ -8,12 +8,14 @@
       <data-plot name="freq" label="Frequency" />
       <data-plot name="diss" label="Dissipation" />
       <data-plot name="temp" label="Temperature" />
-      <div class="grid grid-cols-2 gap-4">
-        <device-plot
-          v-for="device in $store.state.devices"
-          :key="device.serial_number"
-          :device="device"
-        />
+      <div>
+        <div class="grid grid-cols-2 gap-4">
+          <device-plot
+            v-for="device in $store.state.devices"
+            :key="device.serial_number"
+            :device="device"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -33,10 +35,10 @@ export default Vue.extend({
     DevicePlot,
   },
   sockets: {
-    measuredData: function(data: MeasuredData) {
+    measuredData: function (data: MeasuredData) {
       this.$store.commit('processMeasuredData', data)
     },
-    devices: function(rawDevices: Partial<Device>[]) {
+    devices: function (rawDevices: Partial<Device>[]) {
       this.$store.commit('setDevices', rawDevices)
     },
   },
