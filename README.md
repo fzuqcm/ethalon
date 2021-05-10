@@ -1,22 +1,42 @@
-# qcm-vue2-ts
+# Etalon Software
 
-## Project setup
+## Install
+
+> This is the recommended setup tested on good operations system
+
+Open two VSCode windows for `driver` and `web` folders. Then only operate within the folders. **You should not run any command directly in the project root folder.**
+
+### Driver
+
+```sh
+virtualenv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Web
 
 ```sh
 npm install
 ```
 
-### Run development
+## Development
+
+### Driver
 
 ```sh
-python3 server/app.py
-npm run electron:serve
+# inside virtual environment
+python app.py
 ```
 
-# Serial port permissions
+### Web
 
 ```sh
-sudo usermod -a -G tty $USER
-sudo usermod -a -G dialout $USER
-sudo usermod -a -G uucp $USER
+npm run dev
 ```
+
+### Production
+
+There no scripts for production bundle. Web can be easily bundled as a serie of `.js`/`.css` files and staticly served. The great question is how to deal with Python installation.
+
+One solution could be to use [Snap](https://snapcraft.io/). It's a multi-platform installer.
