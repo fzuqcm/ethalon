@@ -1,271 +1,157 @@
-from multiprocessing import Queue, Process
-import numpy as np
+from multiprocessing import Pool, cpu_count
+from time import time
 
-# from peewee import Model
-from pony import orm
-from qcm import measure
 import eventlet
+import numpy as np
 import socketio
-import datetime
-import time
-# import os
 from serial.tools import list_ports
-# from db import db, MeasurementModel, DeviceModel
-# , ChannelPoint, MeasurePoint
-from db2 import Device, Measurement, ChannelPoint
 
-from utils import timestamp
-import constants as const
+from constants import Status, Command
+from db import Device, Measurement
+from utils import sleep_time
 
 sio = socketio.Server(cors_allowed_origins='*')
-app = socketio.WSGIApp(sio, static_files={
-    # '': os.path.join('..', 'yum', 'public')
-})
-measurements = dict()
-devices = dict()
-channels = dict()
-result_queue = Queue()
+app = socketio.WSGIApp(sio)
+measurements = dict[str, Measurement]()
 
 
-# def channels_to_json(all=False):
-#     result = dict()
+def emitMeasurement(m: Measurement):
+    d = m.device
+    data = {
+        'name': m.name,
+        'status': m.status,
+        'port': m.port,
+        'device': {
+            'id': d.id,
+            'serialNumber': d.serial_number,
+            'name': d.name
+        },
+        'freq': m.freq.tolist(),
+        'diss': m.diss.tolist(),
+        'temp': m.temp.tolist(),
+        'time': m.time.tolist(),
+        'calibFreq': m.calib_freq
+    }
 
-#     for port, channel in channels.items():
-#         result[port] = dict(
-#             calib_freq=channel.calib_freq,
-#             device=channel.device.id,
-#             measurement=getattr(channel.measurement, 'id', None),
-#             is_active=channel.is_active,
-#             port=channel.port,
-#             status=channel.status
-#         )
-
-# if all:
-#     result[port]['channel_points'] = channel.channel_points
-
-# return result
-
-
-# def measurements_to_json():
-#     result = dict()
-
-#     for id, measurement in measurements.items():
-#         result[id] = measurement.to_dict(exclude='started_at')
-#         result[id]['started_at'] = timestamp(measurement.started_at)
-#         result[id]['freq'] = list(measurement.freq)
-#         result[id]['diss'] = list(measurement.diss)
-#         result[id]['temp'] = list(measurement.temp)
-#         result[id]['time'] = list(measurement.time)
-
-#     return result
-
-
-# def devices_to_json():
-#     result = dict()
-
-#     for id, device in devices.items():
-#         result[id] = device.to_dict()
-
-#     return result
-
-
-
+    sio.emit('addMeasurement', data)
 
 
 @sio.event
 def connect(sid, environ):
-    pass
-    # sio.emit('measurements', measurements_to_json())
-    # sio.emit('channels', channels_to_json())
-    # sio.emit('devices', devices_to_json())
-
-
-@sio.on('start')
-def start(sid, ports):
-    for port in ports:
-        if port in channels:
-            # print('channel started', port)
-            channels[port].start()
-            # print('channel.mesure', channels[port].measurement)
-
-    # sio.emit('measurements', measurements_to_json())
-    # sio.emit('channels', channels_to_json())
-    # sio.emit('devices', devices_to_json())
-
-
-@sio.on('stop')
-def stop(sid, ports):
-    for port in ports:
-        channels[port].stop()
-
-
-@sio.on('export')
-def export(sid, measurement_ids):
-    for mid in measurement_ids:
-        measurement = measurements.get(mid, None)
-
-        print(measurement, mid)
+    for m in measurements.values():
+        emitMeasurement(m)
 
 
 @sio.on('scan')
-def scan(sid):
-    ports = []
+def scan(sio):
     for port in list_ports.comports():
-        if port.device in channels:
+        print(port.device)
+        if port.device in measurements:
             continue
-
-        device = Device.get(serial_number=port.serial_number)
-        if device:
-            pass
         else:
-            device = Device(
-                name='QCM {}'.format(port.serial_number),
+            device = Device.get_or_create(
                 serial_number=port.serial_number,
+                defaults={'name': 'QCM ' + port.serial_number}
+            )[0]
+            measurements[port.device] = Measurement(
+                port.device,
+                device
             )
-            orm.commit()
+            emitMeasurement(measurements[port.device])
 
-        channels[port.device] = Channel(port.device, device)
-        devices[device.id] = device
 
-    for _, channel in channels.items():
-        ports.append(channel.port)
+@sio.on('start')
+def start(sio, ports):
+    for port in ports:
+        m = measurements[port]
+        m.status = Status.MEASURING
+        emitMeasurement(m)
 
-    # sio.emit('measurements', measurements_to_json())
-    # sio.emit('channels', channels_to_json())
-    # sio.emit('devices', devices_to_json())
+
+@sio.on('stop')
+def stop(sio, ports):
+    for port in ports:
+        m = measurements[port]
+        m.save()
+        measurements[m.port] = Measurement(
+            m.port,
+            m.device
+        )
+        emitMeasurement(measurements[m.port])
 
 
 @sio.on('calibrate')
-def calibrate(sid, ports):
-    channel_list = list()
-    channel_counter = 0
-
+def calibrate(sio, ports):
     for port in ports:
-        channel = channels[port]
-        channel.calibrate()
-        channel_list.append(channel)
-        channel_counter += 1
-
-    while channel_counter > 0:
-        (port, calib_freq) = result_queue.get(True)
-        channels[port].calib_freq = calib_freq
-        # print('newcalibfreq', calib_freq)
-        channel_counter -= 1
-
-    for channel in channel_list:
-        # print('actualcalibfreq', channel.calib_freq)
-        channel.stop()
-
-    # sio.emit('setup', channels_to_json())
+        m = measurements[port]
+        m.status = Status.CALIBRATING
+        emitMeasurement(measurements[m.port])
 
 
-# @sio.on('changeDeviceName')
-# def change_device_name(sid, data):
-#     print(data)
-#     q = DeviceModel.update({DeviceModel.name: data['name']}).where(
-#         DeviceModel.serial_number == data['serialNumber']
-#     )
-#     print(q.execute())
+def do(args: tuple[str, str]):
+    import serial
+    cmd = args[0]
+    portName = args[1]
 
-@sio.on('offset')
-def offset(sid, settings):
-    print(settings)
-    for idx, setting in settings.items():
-        print(idx, setting)
-        m = measurements.get(int(idx), None)
-        print('m', m)
-        if m:
-            m.compute_offset(setting)
+    try:
+        with serial.Serial(portName, baudrate=115200) as port:
+            port.write((cmd + '\n').encode())
+            port.flush()
+            freq = port.readline().decode()
+            temp = port.readline().decode()
+    except serial.SerialException:
+        return 'err'
 
-    # sio.emit('measurements', measurements_to_json())
-
-
-@sio.on('test')
-def test(sid):
-    m = Measurement[2]
-    m.compute_data()
-    measurements[m.id] = m
-    # print(measurements_to_json())
-    m.compute_offset({
-        'freq': 10**7 + 6100
-    })
-    # print(measurements_to_json())
-    sio.emit('test')
-
-
-@sio.event
-def disconnect(sid):
-    pass
-    # print('disconnect ', sid)
+    return (
+        cmd,
+        portName,
+        float(freq),
+        float(0),
+        float(temp)
+    )
 
 
 def queue_handler():
-    data_point = dict()
-    should_emit = False
-    ttime = datetime.datetime.now()
-    time_js = timestamp(time)
+    current_time = round(time())
+    data = list()
 
-    while result_queue.qsize() > 0:
-        should_emit = True
-        port, measure_points, channel_point = result_queue.get_nowait()
-        channel_point['time'] = time_js
-        # channel_point['time'] = time_js
-        # channel_point['time'] = time_js
-        # channel_point['time'] = time_js
-        channel = channels[port]
+    values = []
+    for m in measurements.values():
+        if m.status == Status.MEASURING:
+            values.append((Command.MEASURE, m.port))
 
-        if not channel.measurement:
+    results = pool.map(do, values)
+    for result in results:
+        if result == 'err':
+            return
+
+        m = measurements.get(result[1], None)
+
+        if not m or m.status != Status.MEASURING:
             continue
 
-        ChannelPoint(
-            timestamp=ttime,
-            temperature=channel_point['temp'],
-            measurement=channel.measurement,
-            freq=[int(x) for x in measure_points['freq']],
-            ampl=[float(x) for x in measure_points['ampl']],
-            phas=[float(x) for x in measure_points['phas']]
-        )
+        m.calib_freq = result[2]
+        m.freq = np.append(m.freq, result[2])
+        m.diss = np.append(m.diss, result[3])
+        m.temp = np.append(m.temp, result[4])
+        m.time = np.append(m.time, current_time)
+        data.append([*result[1:], current_time])
 
-        channel.measurement.freq = np.append(
-            channel.measurement.freq,
-            channel_point['freq'] - channel.measurement.offset.get('freq', 0)
-        )
-        channel.measurement.diss = np.append(
-            channel.measurement.diss,
-            channel_point['diss'] - channel.measurement.offset.get('diss', 0)
-        )
-        channel.measurement.temp = np.append(
-            channel.measurement.temp,
-            channel_point['temp'] - channel.measurement.offset.get('temp', 0)
-        )
-        channel.measurement.time = np.append(
-            channel.measurement.time,
-            channel_point['time'] - channel.measurement.offset.get('time', 0)
-        )
-
-        data_point[port] = {
-            'channel_point': channel_point,
-            'measure_points': measure_points
-        }
-
-    orm.commit()
-
-    if should_emit:
-        sio.emit('data', data_point)
-
-    for port, channel in channels.items():
-        if channel.measurement:
-            channel.task_queue.put('measure')
+    print(data)
+    sio.emit('data', data)
 
 
-def robot():
+def tick_tick():
+    eventlet.sleep(sleep_time())
     while True:
-        # queue_handler()
-        print(round(time.time() * 1000))
-        eventlet.sleep(0.975)
+        queue_handler()
+        t = sleep_time()
+        print('Execution time:', int((1 - t) * 1000), 'ms')
+        eventlet.sleep(t)
 
 
 if __name__ == '__main__':
-    eventlet.spawn(robot)
-    with orm.db_session:
-        eventlet.wsgi.server(eventlet.listen(('', 5000)), app)
+    pool = Pool(processes=cpu_count() // 4)
+
+    eventlet.spawn(tick_tick)
+    eventlet.wsgi.server(eventlet.listen(('0.0.0.0', 5000)), app)
