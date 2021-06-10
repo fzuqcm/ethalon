@@ -1,6 +1,7 @@
-# from db import db, MeasurementModel, DeviceModel
+from db import db, Marker, Measurement, Device
 
-# db.create_tables([DeviceModel, MeasurementModel])
-from db2 import db
+models = [Marker, Measurement, Device]
 
-db.generate_mapping(create_tables=True)
+db.connect()
+db.drop_tables(models)
+db.create_tables(models)

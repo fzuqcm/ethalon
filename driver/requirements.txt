@@ -2,8 +2,6 @@ autopep8==1.5.5
 eventlet==0.30.2
 flake8==3.9.0
 numpy==1.20.1
-peewee==3.14.3
-pony==0.7.14
-pylint==2.7.2
 pyserial==3.5
 python-socketio==5.1.0
+pypika==0.48.2

@@ -13,8 +13,15 @@ RAW_DATA_SEPARATOR = ';'
 OUTPUT_EXT = 'output'
 RAW_DATA_EXT = 'txt'
 
-STATUS_ERROR = 0
-STATUS_IDLE = 1
-STATUS_CALIBRATING = 2
-STATUS_CALIBRATED = 3
-STATUS_MEASURING = 4
+
+class Status:
+    READY = 1
+    CALIBRATING = 2
+    CALIBRATED = 3
+    CALIB_ERR = 4
+    MEASURING = 5
+
+
+class Command:
+    CALIBRATE = 'c'
+    MEASURE = 'm'

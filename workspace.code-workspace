@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "driver"
+		},
+		{
+			"path": "firmware"
+		},
+		{
+			"path": "web"
+		}
+	],
+	"settings": {}
+}

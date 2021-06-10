@@ -1,34 +1,28 @@
 {
-   "name": "qcm-app-kit",
-   "version": "0.0.1",
-   "scripts": {
-      "dev": "svelte-kit dev",
-      "build": "svelte-kit build",
-      "start": "svelte-kit start",
-      "lint": "prettier --check . && eslint --ignore-path .gitignore .",
-      "format": "prettier --write ."
-   },
-   "devDependencies": {
-      "@sveltejs/adapter-node": "next",
-      "@sveltejs/adapter-static": "^1.0.0-next.4",
-      "@sveltejs/kit": "next",
-      "autoprefixer": "^10.2.5",
-      "cssnano": "^4.1.10",
-      "dayjs": "^1.10.4",
-      "eslint": "^7.22.0",
-      "eslint-config-prettier": "^8.1.0",
-      "eslint-plugin-svelte3": "^3.1.0",
-      "lodash": "^4.17.21",
-      "postcss": "^8.2.9",
-      "postcss-load-config": "^3.0.1",
-      "prettier": "~2.2.1",
-      "prettier-plugin-svelte": "^2.2.0",
-      "socket.io-client": "^4.0.1",
-      "svelte": "^3.29.0",
-      "svelte-preprocess": "^4.7.0",
-      "tailwindcss": "^2.1.0",
-      "uplot": "^1.6.8",
-      "vite": "^2.1.0"
-   },
-   "type": "module"
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "dayjs": "^1.10.5",
+    "lodash": "^4.17.21",
+    "socket.io-client": "^4.1.2",
+    "uplot": "^1.6.12",
+    "uplot-vue": "^1.1.0",
+    "vue": "^3.0.5",
+    "vuex": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.170",
+    "@vitejs/plugin-vue": "^1.2.3",
+    "@vue/compiler-sfc": "^3.0.5",
+    "autoprefixer": "^10.2.6",
+    "postcss": "^8.3.0",
+    "tailwindcss": "^2.1.4",
+    "typescript": "^4.1.3",
+    "vite": "^2.3.5",
+    "vue-tsc": "^0.0.24"
+  }
 }

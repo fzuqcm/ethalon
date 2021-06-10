@@ -57,7 +57,7 @@ import { dataset_dev } from 'svelte/internal';
                },
                {
                   label: title,
-                  values: (self, vals) => vals.map((v) => v.toExponential(3)),
+                  // values: (self, vals) => vals.map((v) => v.toExponential(3)),
                },
             ],
             scales: {

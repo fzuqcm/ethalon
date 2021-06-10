@@ -1,5 +1,6 @@
 import datetime
 from constants import DATE_SEPARATOR
+import time
 
 
 def timestamp(date=datetime.datetime.now()):
@@ -15,3 +16,7 @@ def format_unix_timestamp(millis):
     """
     return datetime.datetime.fromtimestamp(millis//1000) \
         .strftime('%Y-%m-%d{}%H-%M-%S'.format(DATE_SEPARATOR))
+
+
+def sleep_time():
+    return (999 - round(time.time() * 1000) % 1000) / 1000
