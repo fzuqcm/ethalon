@@ -1,5 +1,5 @@
 """
-Prepare global constants
+Prepare global constants.
 """
 INITIAL_FREQ = 10**7
 INTERVAL_CALIB = 10**5
@@ -15,6 +15,9 @@ RAW_DATA_EXT = 'txt'
 
 
 class Status:
+    """
+    Available statuses of the device.
+    """
     READY = 1
     CALIBRATING = 2
     CALIBRATED = 3
@@ -23,5 +26,8 @@ class Status:
 
 
 class Command:
+    """
+    Supported commands for the firmware.
+    """
     CALIBRATE = 'c'
     MEASURE = 'm'

@@ -1,7 +1,11 @@
-from db import db, Marker, Measurement, Device
+from db import Device, Marker, Measurement, db
 
-models = [Marker, Measurement, Device]
+# register models
+models = [Device, Marker, Measurement]
 
-db.connect()
-db.drop_tables(models)
-db.create_tables(models)
+# connect to the db, drop all tables and recreate them
+# ONLY RUN IN DEVELOPMENT
+if False:
+    db.connect()
+    db.drop_tables(models)
+    db.create_tables(models)

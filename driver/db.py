@@ -1,14 +1,12 @@
-import numpy as np
-from constants import Status
 import uuid
-from peewee import (
-    IntegerField,
-    PostgresqlDatabase,
-    Model, ForeignKeyField,
-    Field,
-    TextField
-)
 
+import numpy as np
+from peewee import (Field, ForeignKeyField, IntegerField, Model,
+                    PostgresqlDatabase, TextField)
+
+from constants import Status
+
+# initialize database connection
 db = PostgresqlDatabase(
     'postgres',
     user='postgres',
@@ -18,12 +16,17 @@ db = PostgresqlDatabase(
 
 
 class RealArrayField(Field):
+    """
+    Native Postgres real array, that is converted to the NumPy float32 array.
+    """
     field_type = 'REAL[]'
 
     def db_value(self, value) -> str:
+        # perform fast serialization
         return '{' + ','.join([str(x) for x in value]) + '}'
 
     def python_value(self, value) -> list[float]:
+        # perform converting to the NumPy array
         return np.array(
             [float(x) for x in value[1:-1].split(',')],
             dtype=np.float32
@@ -31,12 +34,17 @@ class RealArrayField(Field):
 
 
 class IntegerArrayField(Field):
+    """
+    Native Postgres int array, that is converted to the NumPy int2 array.
+    """
     field_type = 'INT[]'
 
     def db_value(self, value) -> str:
+        # perform fast serialization
         return '{' + ','.join([str(x) for x in value]) + '}'
 
     def python_value(self, value) -> list[int]:
+        # perform converting to the NumPy array
         return np.array(
             [int(x) for x in value[1:-1].split(',')],
             dtype=np.int32
@@ -44,16 +52,25 @@ class IntegerArrayField(Field):
 
 
 class BaseModel(Model):
+    """
+    Base class for all models, that only registers database.
+    """
     class Meta:
         database = db
 
 
 class Device(BaseModel):
-    name = TextField(unique=True)
-    serial_number = TextField()
+    """
+    A model for storing device information.
+    """
+    name = TextField()
+    serial_number = TextField(unique=True)
 
 
 class Measurement(BaseModel):
+    """
+    A model for measurement. Saves all needed information.
+    """
     device = ForeignKeyField(Device, backref='measurements')
     name = TextField()
     freq = RealArrayField()
@@ -75,6 +92,9 @@ class Measurement(BaseModel):
 
 
 class Marker(BaseModel):
+    """
+    A model for saving markers in the measurement.
+    """
     name = TextField()
     timestamp = IntegerField()
     measurement = ForeignKeyField(Measurement, backref='markers')
