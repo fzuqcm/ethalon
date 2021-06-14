@@ -3,6 +3,7 @@ import uuid
 import numpy as np
 from peewee import (Field, ForeignKeyField, IntegerField, Model,
                     PostgresqlDatabase, TextField)
+from playhouse.postgres_ext import BinaryJSONField
 
 from constants import Status
 
@@ -72,7 +73,8 @@ class Measurement(BaseModel):
     A model for measurement. Saves all needed information.
     """
     device = ForeignKeyField(Device, backref='measurements')
-    name = TextField()
+    data = BinaryJSONField()
+    markers = BinaryJSONField()
     freq = RealArrayField()
     diss = RealArrayField()
     temp = RealArrayField()
@@ -84,17 +86,18 @@ class Measurement(BaseModel):
         self.port = port
         self.device = device
         self.status = Status.READY
-        self.name = str(uuid.uuid4()).split('-')[-1]
+        self.data = {'name': str(uuid.uuid4()).split('-')[-1]}
+        self.markers = list()
         self.freq = np.array([], dtype=np.float32)
         self.diss = np.array([], dtype=np.float32)
         self.temp = np.array([], dtype=np.float32)
         self.time = np.array([], dtype=np.int32)
 
 
-class Marker(BaseModel):
-    """
-    A model for saving markers in the measurement.
-    """
-    name = TextField()
-    timestamp = IntegerField()
-    measurement = ForeignKeyField(Measurement, backref='markers')
+# class Marker(BaseModel):
+#     """
+#     A model for saving markers in the measurement.
+#     """
+#     name = TextField()
+#     timestamp = IntegerField()
+#     measurement = ForeignKeyField(Measurement, backref='markers')

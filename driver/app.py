@@ -23,7 +23,7 @@ def emitMeasurement(m: Measurement):
     """
     d = m.device
     data = {
-        'name': m.name,
+        'data': m.data,
         'status': m.status,
         'port': m.port,
         'device': {
@@ -35,7 +35,8 @@ def emitMeasurement(m: Measurement):
         'diss': m.diss.tolist(),
         'temp': m.temp.tolist(),
         'time': m.time.tolist(),
-        'calibFreq': m.calib_freq
+        'calibFreq': m.calib_freq,
+        'markers': m.markers
     }
 
     sio.emit('addMeasurement', data)
@@ -83,6 +84,15 @@ def start(sio, ports):
     for port in ports:
         m = measurements[port]
         m.status = Status.MEASURING
+        emitMeasurement(m)
+
+
+@sio.on('marker')
+def marker(sio, data):
+    for port in data:
+        print(port)
+        m = measurements[port]
+        m.markers = data[port]
         emitMeasurement(m)
 
 

@@ -4,6 +4,12 @@
 
 @layer components {
     button {
-        @apply px-4 py-2 bg-gray-700 text-white hover:bg-gray-800 rounded-lg;
+        @apply px-2 bg-blue-600 text-white hover:bg-gray-800 rounded-lg focus:outline-none;
+    }
+
+    [type="text"],
+    [type="number"],
+    select {
+        @apply px-2 border rounded-lg focus:outline-none w-full bg-white;
     }
 }

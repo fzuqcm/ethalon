@@ -106,11 +106,18 @@ export const store = createStore<State>({
           return;
         }
 
-        if (!m.time.length && state.firstTime < Number.MAX_SAFE_INTEGER) {
-          m.freq = Array(time - state.firstTime).map(() => undefined);
-          m.diss = Array(time - state.firstTime).map(() => undefined);
-          m.temp = Array(time - state.firstTime).map(() => undefined);
-          m.time = Array(time - state.firstTime).map(() => undefined);
+        if (
+          (!m.time.length || (m.time as number[])[0] > state.firstTime) &&
+          state.firstTime < Number.MAX_SAFE_INTEGER
+        ) {
+          const diff = ((m.time as number[])[0] || time) - state.firstTime;
+          m.freq = [...Array(diff), ...m.freq];
+          m.freqOffset = [...Array(diff), ...m.freqOffset];
+          m.diss = [...Array(diff), ...m.diss];
+          m.temp = [...Array(diff), ...m.temp];
+          m.time = [...Array(diff), ...m.time];
+
+          // console.log("freq", m.freqOffset);
         }
 
         m.calibFreq = freq;
@@ -171,6 +178,9 @@ export const store = createStore<State>({
       return _.values(state.measurements)
         .filter((m) => m.isSelected)
         .map((m) => m.port);
+    },
+    selectedMeasurements(state): Measurement[] {
+      return _.values(state.measurements).filter((m) => m.isSelected);
     },
   },
 });

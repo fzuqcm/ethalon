@@ -1,5 +1,5 @@
 <template>
-  <div ref="targetRef"></div>
+  <div class="flex-1"></div>
 </template>
 
 <script lang="ts">
@@ -19,8 +19,8 @@ export default defineComponent({
       required: true,
     },
   },
-  data(): { _chart: uPlot | null } {
-    return { _chart: null };
+  data(): { _chart: uPlot | null; width: number } {
+    return { _chart: null, width: 0 };
   },
   watch: {
     options(options, prevOptions) {
@@ -29,12 +29,8 @@ export default defineComponent({
         this._destroy();
         this._create();
       } else if (optionsState === "update") {
-        this._chart.setSize({ width: options.width, height: options.height });
+        this._chart.setSize({ width: this.width, height: options.height });
       }
-    },
-    target() {
-      this._destroy();
-      this._create();
     },
     data(data) {
       if (!this._chart) {
@@ -47,6 +43,7 @@ export default defineComponent({
     },
   },
   mounted() {
+    this.width = this.$el.offsetWidth;
     this._create();
   },
   beforeUnmount() {
@@ -61,6 +58,7 @@ export default defineComponent({
       }
     },
     _create() {
+      this.options.width = this.width;
       this._chart = new uPlot(this.$props.options, this.$props.data, this.$el);
       this.$emit("create", this._chart);
     },
