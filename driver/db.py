@@ -1,7 +1,7 @@
 import uuid
 
 import numpy as np
-from peewee import (Field, ForeignKeyField, IntegerField, Model,
+from peewee import (Field, ForeignKeyField, Model,
                     PostgresqlDatabase, TextField)
 from playhouse.postgres_ext import BinaryJSONField
 
@@ -74,7 +74,6 @@ class Measurement(BaseModel):
     """
     device = ForeignKeyField(Device, backref='measurements')
     data = BinaryJSONField()
-    markers = BinaryJSONField()
     freq = RealArrayField()
     diss = RealArrayField()
     temp = RealArrayField()
@@ -86,12 +85,14 @@ class Measurement(BaseModel):
         self.port = port
         self.device = device
         self.status = Status.READY
-        self.data = {'name': str(uuid.uuid4()).split('-')[-1]}
-        self.markers = list()
         self.freq = np.array([], dtype=np.float32)
         self.diss = np.array([], dtype=np.float32)
         self.temp = np.array([], dtype=np.float32)
         self.time = np.array([], dtype=np.int32)
+        self.data = {
+            'name': str(uuid.uuid4()).split('-')[-1],
+            'markers': list()
+        }
 
 
 # class Marker(BaseModel):

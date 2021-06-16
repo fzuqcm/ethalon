@@ -36,6 +36,11 @@ export interface Device {
   serialNumber: string;
 }
 
+export interface Marker {
+  name: string;
+  timestamp: number;
+}
+
 export interface Measurement {
   port: string;
   calibFreq: number;
@@ -53,9 +58,19 @@ export interface Measurement {
     freq: number;
   };
   isSelected: boolean;
+  isEditOpen: boolean;
+  areMarkersShown: boolean;
+  data: {
+    name: string;
+    markers: Marker[];
+  };
 }
 
 export type DictStr<T> = { [key: string]: T };
+
+export const socket = io("http://localhost:5000/", {
+  transports: ["websocket"],
+});
 
 export const store = createStore<State>({
   state() {
@@ -70,6 +85,8 @@ export const store = createStore<State>({
       m.offset = { freq: 0 };
       m.freqOffset = m.freq;
       m.isSelected = true;
+      m.isEditOpen = false;
+      m.areMarkersShown = false;
       state.measurements[m.port] = m;
 
       if (m.time[0] && m.time[0] < state.firstTime) {
@@ -87,6 +104,12 @@ export const store = createStore<State>({
     },
     setIsPlotPaused(state, isPlotPaused) {
       state.isPlotPaused = isPlotPaused;
+    },
+    addMarker(state, { port, marker }: { port: string; marker: Marker }) {
+      state.measurements[port].data.markers.push(marker);
+    },
+    removeMarker(state, { port, index }: { port: string; index: number }) {
+      state.measurements[port].data.markers.splice(index, 1);
     },
     setOffset(state, time) {
       _.values(state.measurements).forEach((m) => {
@@ -183,10 +206,6 @@ export const store = createStore<State>({
       return _.values(state.measurements).filter((m) => m.isSelected);
     },
   },
-});
-
-export const socket = io("http://localhost:5000/", {
-  transports: ["websocket"],
 });
 
 socket.onAny((event, data) => {

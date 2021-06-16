@@ -37,7 +37,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { DictStr, socket } from "../utils";
+import { DictStr, Marker, Measurement, socket } from "../utils";
 
 export default defineComponent({
   data() {
@@ -52,9 +52,10 @@ export default defineComponent({
   },
   methods: {
     emitMarker() {
-      const markers: DictStr<unknown> = {};
-      this.$store.getters.selectedPorts.forEach((port: string) => {
-        markers[port] = this.marker;
+      const markers: DictStr<Marker[]> = {};
+      this.$store.getters.selectedMeasurements.forEach((m: Measurement) => {
+        this.$store.commit("addMarker", { port: m.port, marker: this.marker });
+        markers[m.port] = m.data.markers;
       });
 
       socket.emit("marker", markers);
