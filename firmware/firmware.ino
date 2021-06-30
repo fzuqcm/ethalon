@@ -287,10 +287,10 @@ double sweepFrequency(long rf)
     A(i, 1) = i;
     A(i, 2) = 1;
 
-    if (b(i) < 3000)
-    {
-      return -b(i); //-1;
-    }
+    // if (b(i) < 3000)
+    // {
+    //   return -b(i); //-1;
+    // }
 
     str.concat(b(i)).concat(';');
   }
@@ -304,67 +304,133 @@ double sweepFrequency(long rf)
 
   calib_freq = (long)result;
 
+  SetFreq(calib_freq);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  int la = analogRead(AD8302_MAG);
+  double sum = 0;
+  for (int i = 1; i < 10; i++)
+  {
+    sum += b(i);
+  }
+  if (sum < 10000)
+  {
+    return -1;
+  }
+
   return result;
 }
 
 double dissipation(long rf)
 {
-  String str = String();
-  BLA::Matrix<DIS_COUNT> d;
+  // String str = String();
+  // BLA::Matrix<DIS_COUNT> d;
 
-  long f = rf - (DIS_RANGE / 2);
-  double cumsum = 0;
-  double max = 0;
-  double maxf = -1.0;
-  double dlf = -1.0;
-  double drf = -1.0;
-  double dis = -1.0;
-  int maxidx = -1;
-  int ldis = -1;
-  int rdis = -1;
+  // long f = rf - (DIS_RANGE / 2);
+  // double cumsum = 0;
+  // double max = 0;
+  // double maxf = -1.0;
+  // double dlf = -1.0;
+  // double drf = -1.0;
+  // double dis = -1.0;
+  // int maxidx = -1;
+  // int ldis = -1;
+  // int rdis = -1;
 
-  SetFreq(f);
+  SetFreq(rf);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
-  
-  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
-  {
-    SetFreq(f);
-    if (WAIT)
-      delayMicroseconds(WAIT_DELAY_US);
-    cumsum = 0;
 
-    for (int j = 0; j < SWEEP_REPEAT; j++)
-    {
-      cumsum += analogRead(AD8302_MAG);
-    }
+  SetFreq(rf);
+  if (WAIT)
+    delayMicroseconds(WAIT_DELAY_US);
 
-    d(i) = cumsum / (double)SWEEP_REPEAT;
-    if (d(i) > max)
-    {
-      max = d(i);
-      maxidx = i;
-      maxf = (double)f;
-    }
-  }
-
-  f = rf - (DIS_RANGE / 2);
-  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
-  {
-    if (ldis < 0 && d(i) > 0.707 * max)
-    {
-      ldis = i;
-      dlf = (double)f;
-    }
-    if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
-    {
-      rdis = i - 1;
-      drf = (double)f;
+  long fl = rf;
+  long fr = rf;
+  int la = analogRead(AD8302_MAG);
+  int ra = la;
+  double boundary = (double)la * 0.707;
+  int step = 2048;
+  while (true) {
+    if (step < 8) {
+      // fl + 2* step;
       break;
     }
+
+    SetFreq(fl - step);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+
+    la = analogRead(AD8302_MAG);
+    if (la > boundary) {
+      fl -= step;
+    } else {
+      // fl += step;
+      step /= 2;
+    }
   }
-  dis = maxf / (drf - dlf);
-  return dis;
+
+  while (true) {
+    if (step < 8) {
+      // fr + 2* step;
+      break;
+    }
+
+    SetFreq(fr + step);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+
+    ra = analogRead(AD8302_MAG);
+    if (ra > boundary) {
+      fr += step;
+    } else {
+      // fr -= step;
+      step /= 2;
+    }
+  }
+
+  // Serial.println(fr);
+  // Serial.println(fl);
+  // Serial.println((double)rf / (double)(fl - fr));
+
+  
+  // for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  // {
+  //   SetFreq(f);
+  //   if (WAIT)
+  //     delayMicroseconds(WAIT_DELAY_US);
+  //   cumsum = 0;
+
+  //   for (int j = 0; j < SWEEP_REPEAT; j++)
+  //   {
+  //     cumsum += analogRead(AD8302_MAG);
+  //   }
+
+  //   d(i) = cumsum / (double)SWEEP_REPEAT;
+  //   if (d(i) > max)
+  //   {
+  //     max = d(i);
+  //     maxidx = i;
+  //     maxf = (double)f;
+  //   }
+  // }
+
+  // f = rf - (DIS_RANGE / 2);
+  // for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  // {
+  //   if (ldis < 0 && d(i) > 0.707 * max)
+  //   {
+  //     ldis = i;
+  //     dlf = (double)f;
+  //   }
+  //   if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
+  //   {
+  //     rdis = i - 1;
+  //     drf = (double)f;
+  //     break;
+  //   }
+  // }
+  // dis = maxf / (drf - dlf);
+  return (double)rf / (double)(fl - fr);
 }
 
 double sweepDebug(long rf)
@@ -498,7 +564,8 @@ int modernRead(String msg)
     Serial.println(t);
     break;
   case 'm':
-    f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     Serial.println(rf);
     dis = dissipation(f);
@@ -508,7 +575,8 @@ int modernRead(String msg)
     Serial.println(t);
     break;
   case 'M':
-    f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     Serial.println(rf);
     dis = dissipation(f);
@@ -519,7 +587,8 @@ int modernRead(String msg)
     Serial.println("s");
     break;
   case 'D':
-    f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     // rf = sweepFrequency(f);
     Serial.println(calib_freq - DIRTY_RANGE);
     Serial.println(calib_freq + DIRTY_RANGE);
