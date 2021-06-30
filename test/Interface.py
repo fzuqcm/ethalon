@@ -265,12 +265,27 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         self.GraphA.plot(self.polyf,self.polya, pen=pg.mkPen(color='#808000', width=2))
 
     def DebugButtonClicked(self):
-        [frr, frl, fr, frq] = self.readMax()
-        print('Frl = ',frl,'Fr = ',fr,'Frr = ',frr,'Frq = ',frr)
-        self.GraphA.plot([frl,frl], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
-        self.GraphA.plot([fr,fr], [0,4500], pen=pg.mkPen(color='#FF00FF', width=3))
-        self.GraphA.plot([frr,frr], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
-        self.GraphA.plot([frq,frq], [0,4500], pen=pg.mkPen(color='#FF0000', width=2)) #symbol='o')
+        self.Instrument.port = self.PortName
+        self.Instrument.open()
+        self.Instrument.timeout = 0
+        cmd = 'M0\n'
+        print(cmd)
+        self.Instrument.write(cmd.encode())
+        app_encoding = "utf-8"
+        buffer = ''
+        while 1:
+            buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
+            if 's' in buffer:
+                break
+        self.Instrument.close()
+        Buff = buffer.splitlines()
+        print('DEBUG:\n',buffer)
+        # [frr, frl, fr, frq] = self.readMax()
+        # print('Frl = ',frl,'Fr = ',fr,'Frr = ',frr,'Frq = ',frr)
+        # self.GraphA.plot([frl,frl], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
+        # self.GraphA.plot([fr,fr], [0,4500], pen=pg.mkPen(color='#FF00FF', width=3))
+        # self.GraphA.plot([frr,frr], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
+        # self.GraphA.plot([frq,frq], [0,4500], pen=pg.mkPen(color='#FF0000', width=2)) #symbol='o')
 
     def OpenButtonClicked(self):
         # self.PortSelect.setEnabled(False)

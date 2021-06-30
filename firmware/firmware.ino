@@ -364,7 +364,7 @@ double dissipation(long rf)
     }
   }
   dis = maxf / (drf - dlf);
-  // Serial.println(dis);
+  return dis;
 }
 
 double sweepDebug(long rf)
@@ -506,6 +506,17 @@ int modernRead(String msg)
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
+    break;
+  case 'M':
+    f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    Serial.println(rf);
+    dis = dissipation(f);
+    Serial.println(dis);
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    Serial.println(t);
+    Serial.println("s");
     break;
   case 'D':
     f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
