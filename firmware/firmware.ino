@@ -331,7 +331,7 @@ double dissipation(long rf)
   // double maxf = -1.0;
   // double dlf = -1.0;
   // double drf = -1.0;
-  // double dis = -1.0;
+  double dis = -1.0;
   // int maxidx = -1;
   // int ldis = -1;
   // int rdis = -1;
@@ -350,11 +350,11 @@ double dissipation(long rf)
   int ra = la;
   double boundary = (double)la * 0.707;
   int step = 2048;
-  while (true) {
-    if (step < 8) {
-      // fl + 2* step;
-      break;
-    }
+  while (step > 3 && la > 1000) {
+    // if (step < 8) {
+    //   // fl + 2* step;
+    //   break;
+    // }
 
     SetFreq(fl - step);
     if (WAIT)
@@ -369,11 +369,12 @@ double dissipation(long rf)
     }
   }
 
-  while (true) {
-    if (step < 8) {
-      // fr + 2* step;
-      break;
-    }
+  step = 2048;
+  while (step > 3 && ra > 1000) {
+    // if (step < 8) {
+    //   // fr + 2* step;
+    //   break;
+    // }
 
     SetFreq(fr + step);
     if (WAIT)
@@ -390,7 +391,8 @@ double dissipation(long rf)
 
   // Serial.println(fr);
   // Serial.println(fl);
-  // Serial.println((double)rf / (double)(fl - fr));
+  // Serial.println((double)rf / (double)(fr - fl));
+  // Serial.println((double)(fr - fl) / (double)rf,8);
 
   
   // for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
@@ -430,7 +432,14 @@ double dissipation(long rf)
   //   }
   // }
   // dis = maxf / (drf - dlf);
-  return (double)rf / (double)(fl - fr);
+  // dis = (double)(fr - fl) / (double)rf;
+  // str = sprintf("%f",dis)
+  dis = (double)(fr - fl) / (double)rf;
+  if (dis * dis > 1)
+  {
+    dis = -1;
+  }
+  return dis;
 }
 
 double sweepDebug(long rf)
@@ -495,6 +504,8 @@ double sweepDebug(long rf)
     }
   }
   dis = maxf / (drf - dlf);
+  // Serial.println(dlf);
+  // Serial.println(drf);
   Serial.println(dis);
 
   f = rf - (SWEEP_RANGE / 2);
@@ -552,6 +563,7 @@ int modernRead(String msg)
   long f;
   double rf, dis;
   float t;
+  // String dis = String();
 
   switch (cmd)
   {
@@ -568,8 +580,8 @@ int modernRead(String msg)
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     Serial.println(rf);
-    dis = dissipation(f);
-    Serial.println(dis);
+    dis = dissipation(rf);
+    Serial.println(dis,9);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
@@ -579,8 +591,8 @@ int modernRead(String msg)
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     Serial.println(rf);
-    dis = dissipation(f);
-    Serial.println(dis);
+    dis = dissipation(rf);
+    Serial.println(dis,9);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
