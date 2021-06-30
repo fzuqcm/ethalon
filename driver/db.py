@@ -12,6 +12,7 @@ db = PostgresqlDatabase(
     'postgres',
     user='postgres',
     host='localhost',
+    port='15432',
     password='sqljoke'
 )
 
@@ -26,7 +27,7 @@ class RealArrayField(Field):
         # perform fast serialization
         return '{' + ','.join([str(x) for x in value]) + '}'
 
-    def python_value(self, value) -> list[float]:
+    def python_value(self, value) -> 'list[float]':
         # perform converting to the NumPy array
         return np.array(
             [float(x) for x in value[1:-1].split(',')],
@@ -44,7 +45,7 @@ class IntegerArrayField(Field):
         # perform fast serialization
         return '{' + ','.join([str(x) for x in value]) + '}'
 
-    def python_value(self, value) -> list[int]:
+    def python_value(self, value) -> 'list[int]':
         # perform converting to the NumPy array
         return np.array(
             [int(x) for x in value[1:-1].split(',')],

@@ -13,7 +13,7 @@ from utils import sleep_time
 
 sio = socketio.Server(cors_allowed_origins='*')
 app = socketio.WSGIApp(sio)
-measurements = dict[str, Measurement]()
+measurements: 'dict[str, Measurement]' = dict()
 
 
 def emitMeasurement(m: Measurement):
@@ -57,7 +57,7 @@ def scan(sio):
     found ports.
     """
     for port in list_ports.comports():
-        if port.device in measurements:
+        if port.device in measurements or port.hwid[0:21] != 'USB VID:PID=16C0:0483':
             # port already initilized
             continue
         else:
@@ -124,7 +124,7 @@ def calibrate(sio, ports):
         emitMeasurement(measurements[m.port])
 
 
-def do(args: tuple[str, str]):
+def do(args: 'tuple[str, str]'):
     """
     This function handles measuring in in one process (on one port). It opens
     serial connection with the device and read its values.
@@ -144,6 +144,7 @@ def do(args: tuple[str, str]):
             freq = float(port.readline().decode())
             diss = float(0)
             temp = float(port.readline().decode())
+            print(cmd, portName, freq, diss, temp)
     except (serial.SerialException, ValueError):
         return 'err'
 

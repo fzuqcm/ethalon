@@ -9,11 +9,14 @@
 // potentiometer AD5252 I2C address is 0x2C(44)
 #define ADDRESS 0x2C
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
-#define POT_VALUE 240 //254
+// #define POT_VALUE 240 //254
 // reference clock
 #define REFCLK 125000000
 
 /*************************** VARIABLE DECLARATION ***************************/
+// potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC 
+int POT_VALUE = 240; //254
+String potval_str = String(POT_VALUE);
 // current input frequency
 long freq = 0;
 // DDS Synthesizer AD9851 pin function
@@ -200,8 +203,10 @@ int legacyRead(String msg)
 
   tempsensor.shutdown_wake(0);
   float temperature = tempsensor.readTempC();
-
+  
   Serial.print(temperature);
+  Serial.print(";");
+  Serial.print(POT_VALUE);
   Serial.print(";");
   Serial.println("s");
 
@@ -246,6 +251,9 @@ const int SWEEP_STEP = 32;
 const int SWEEP_RANGE = 3072;
 const int SWEEP_COUNT = SWEEP_RANGE / SWEEP_STEP + 1;
 const int SWEEP_REPEAT = 16;
+const int DIS_STEP = 64;
+const int DIS_RANGE = 6144;
+const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
 
 long calib_freq = DEFAULT_CALIB_FREQ;
 
@@ -279,9 +287,9 @@ double sweepFrequency(long rf)
     A(i, 1) = i;
     A(i, 2) = 1;
 
-    if (b(i) < 4000)
+    if (b(i) < 3000)
     {
-      return -1;
+      return -b(i); //-1;
     }
 
     str.concat(b(i)).concat(';');
@@ -290,8 +298,180 @@ double sweepFrequency(long rf)
   //  Serial.println(str);
 
   BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
-  double result = -coeffs(1) / (2 * coeffs(0)) * (double)SWEEP_STEP + (double)rf;
+  double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
 
+  //  Serial.println(result);
+
+  calib_freq = (long)result;
+
+  return result;
+}
+
+double dissipation(long rf)
+{
+  String str = String();
+  BLA::Matrix<DIS_COUNT> d;
+
+  long f = rf - (DIS_RANGE / 2);
+  double cumsum = 0;
+  double max = 0;
+  double maxf = -1.0;
+  double dlf = -1.0;
+  double drf = -1.0;
+  double dis = -1.0;
+  int maxidx = -1;
+  int ldis = -1;
+  int rdis = -1;
+
+  SetFreq(f);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  analogRead(AD8302_MAG);
+  
+  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  {
+    SetFreq(f);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+    cumsum = 0;
+
+    for (int j = 0; j < SWEEP_REPEAT; j++)
+    {
+      cumsum += analogRead(AD8302_MAG);
+    }
+
+    d(i) = cumsum / (double)SWEEP_REPEAT;
+    if (d(i) > max)
+    {
+      max = d(i);
+      maxidx = i;
+      maxf = (double)f;
+    }
+  }
+
+  f = rf - (DIS_RANGE / 2);
+  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  {
+    if (ldis < 0 && d(i) > 0.707 * max)
+    {
+      ldis = i;
+      dlf = (double)f;
+    }
+    if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
+    {
+      rdis = i - 1;
+      drf = (double)f;
+      break;
+    }
+  }
+  dis = maxf / (drf - dlf);
+  // Serial.println(dis);
+}
+
+double sweepDebug(long rf)
+{
+  String str = String();
+  BLA::Matrix<SWEEP_COUNT, 3> A;
+  BLA::Matrix<SWEEP_COUNT> b;
+  BLA::Matrix<DIS_COUNT> d;
+
+  long f = rf - (DIS_RANGE / 2);
+  double cumsum = 0;
+  double max = 0;
+  double maxf = -1.0;
+  double dlf = -1.0;
+  double drf = -1.0;
+  double dis = -1.0;
+  int maxidx = -1;
+  int ldis = -1;
+  int rdis = -1;
+
+  SetFreq(f);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  analogRead(AD8302_MAG);
+  
+  Serial.println(SWEEP_COUNT);
+  Serial.println(SWEEP_STEP);
+
+  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  {
+    SetFreq(f);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+    cumsum = 0;
+
+    for (int j = 0; j < SWEEP_REPEAT; j++)
+    {
+      cumsum += analogRead(AD8302_MAG);
+    }
+
+    d(i) = cumsum / (double)SWEEP_REPEAT;
+    if (d(i) > max)
+    {
+      max = d(i);
+      maxidx = i;
+      maxf = (double)f;
+    }
+  }
+
+  f = rf - (DIS_RANGE / 2);
+  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
+  {
+    if (ldis < 0 && d(i) > 0.707 * max)
+    {
+      ldis = i;
+      dlf = (double)f;
+    }
+    if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
+    {
+      rdis = i - 1;
+      drf = (double)f;
+      break;
+    }
+  }
+  dis = maxf / (drf - dlf);
+  Serial.println(dis);
+
+  f = rf - (SWEEP_RANGE / 2);
+  SetFreq(f);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  analogRead(AD8302_MAG);
+
+  for (int i = 0; i < SWEEP_COUNT; i++, f += SWEEP_STEP)
+  {
+    SetFreq(f);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+    cumsum = 0;
+
+    for (int j = 0; j < SWEEP_REPEAT; j++)
+    {
+      cumsum += analogRead(AD8302_MAG);
+    }
+
+    b(i) = cumsum / (double)SWEEP_REPEAT;
+    A(i, 0) = i * i;
+    A(i, 1) = i;
+    A(i, 2) = 1;
+
+    Serial.println(f);
+    Serial.println(b(i));
+
+    // if (b(i) < 3000)
+    // {
+    //   return -b(i); //-1;
+    // }
+
+    str.concat(b(i)).concat(';');
+  }
+
+  //  Serial.println(str);
+
+  BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
+  double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
+
+  Serial.println(coeffs(0));
+  Serial.println(coeffs(1));
+  Serial.println(coeffs(2));
   //  Serial.println(result);
 
   calib_freq = (long)result;
@@ -304,7 +484,7 @@ int modernRead(String msg)
   long param = msg.substring(2).toInt();
   char cmd = msg.charAt(0);
   long f;
-  double rf;
+  double rf, dis;
   float t;
 
   switch (cmd)
@@ -321,11 +501,34 @@ int modernRead(String msg)
     f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     rf = sweepFrequency(f);
     Serial.println(rf);
+    dis = dissipation(f);
+    Serial.println(dis);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
     break;
-  case 'p':
+  case 'D':
+    f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    // rf = sweepFrequency(f);
+    Serial.println(calib_freq - DIRTY_RANGE);
+    Serial.println(calib_freq + DIRTY_RANGE);
+    Serial.println(f);
+    rf = sweepDebug(f);
+    Serial.println(rf);
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    Serial.println(t);
+    Serial.println("s");
+    break;
+  case 'R':
+    potval_str = msg.substring(1);
+    if (potval_str.toInt() >= 0 && potval_str.toInt() < 256) {
+      POT_VALUE = potval_str.toInt();
+      Wire.beginTransmission(ADDRESS);
+      Wire.write(0x01);
+      Wire.write(POT_VALUE);
+      Wire.endTransmission();
+    }
     break;
   default:
     return 1;
@@ -362,6 +565,6 @@ void loop()
     retVal = legacyRead(msg);
   }
 
-  Serial.println("Modern: " + String(useModern));
-  Serial.println("RetVal: " + String(retVal));
+  // Serial.println("Modern: " + String(useModern));
+  // Serial.println("RetVal: " + String(retVal));
 }
