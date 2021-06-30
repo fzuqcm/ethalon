@@ -246,10 +246,11 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         [frl, frr, fr, frq, dis] = self.readMax()
         fleft = int(self.ff[0])
         fright = int(self.ff[self.n-1])
+        topam = 1000 * round(1 + np.max(self.aa) / 1000)
         print('Frl = ',frl,'Fr = ',fr,'Frr = ',frr,'Frq = ',frq,'Dis = ',dis,'F[0]=',fleft,'F[n]=',fright)
         self.GraphA.plot(self.ff,self.aa, pen=pg.mkPen(color='#00FFFF', width=2))
-        self.GraphA.plot([fr,fr], [3800,4200], pen=pg.mkPen(color='#FF00FF', width=2))
-        self.GraphA.plot([frq,frq], [3800,4200], pen=pg.mkPen(color='#FF0000', width=3)) #symbol='o')
+        self.GraphA.plot([fr,fr], [3800,topam], pen=pg.mkPen(color='#FF00FF', width=2))
+        self.GraphA.plot([frq,frq], [3800,topam], pen=pg.mkPen(color='#FF0000', width=3)) #symbol='o')
         print(self.s,self.n,self.a,self.b,self.c)
         idx = 0
         self.polyf = np.empty(fright-fleft)

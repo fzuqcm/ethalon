@@ -248,11 +248,11 @@ long gradient1(long left_freq, long right_freq)
 const int DEFAULT_CALIB_FREQ = 10000000;
 const int DEFAULT_RANGE = 65536;
 const int SWEEP_STEP = 32;
-const int SWEEP_RANGE = 3072;
+const int SWEEP_RANGE = 1024;
 const int SWEEP_COUNT = SWEEP_RANGE / SWEEP_STEP + 1;
 const int SWEEP_REPEAT = 16;
-const int DIS_STEP = 64;
-const int DIS_RANGE = 6144;
+const int DIS_STEP = 256;
+const int DIS_RANGE = 16384;
 const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
 
 long calib_freq = DEFAULT_CALIB_FREQ;
