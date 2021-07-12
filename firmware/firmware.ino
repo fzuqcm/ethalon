@@ -1,5 +1,10 @@
+/***********************************************************
+ * FZU: This is a FZU version of firmware. Some parts are not changed from the Italien one,
+ * because it is only setting up the digital inputs and outputs.
+ ***********************************************************/
 
-/************************** LIBRARIES **************************/
+/******************************* LIBRARIES *****************************/
+/** FZU: YOU NEED TO INSTALL BasicLinearAlgebra LIBRARY FROM THE MENU **/
 #include <BasicLinearAlgebra.h>
 #include <Wire.h>
 #include "src/Adafruit_MCP9808.h"
@@ -14,7 +19,7 @@
 #define REFCLK 125000000
 
 /*************************** VARIABLE DECLARATION ***************************/
-// potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC 
+// potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
 int POT_VALUE = 240; //254
 String potval_str = String(POT_VALUE);
 // current input frequency
@@ -154,6 +159,9 @@ void setup()
   }
 }
 
+/**
+ * FZU: original Italien code, but optimized for better reading
+ */
 int legacyRead(String msg)
 {
   int d0 = msg.indexOf(';');
@@ -203,7 +211,7 @@ int legacyRead(String msg)
 
   tempsensor.shutdown_wake(0);
   float temperature = tempsensor.readTempC();
-  
+
   Serial.print(temperature);
   Serial.print(";");
   Serial.print(POT_VALUE);
@@ -213,12 +221,20 @@ int legacyRead(String msg)
   return 0;
 }
 
+/****************** FZU: HERE THE ORIGINAL FIRMWARE ENDS **************/
+
 const int DIRTY_NUM = 64;
 const int DIRTY_RANGE = 16384;
 
+/**
+ * FZU: Find "dirty" maximum with really quick algorithm. We start with wide range and big steps. Then
+ * we find maximum and start again with smaller interval and smaller steps. Algorithm ends when step is <= 1.
+ */
 long gradient1(long left_freq, long right_freq)
 {
   int step_size = (right_freq - left_freq) / DIRTY_NUM;
+
+  // recursion ends when step is too small
   if (step_size <= 1)
   {
     return left_freq + (DIRTY_NUM / 2) * step_size;
@@ -228,6 +244,7 @@ long gradient1(long left_freq, long right_freq)
   int max_a = 0;
   int max_f = 0;
 
+  // scan interval in given steps
   for (long f = left_freq; f <= right_freq; f += step_size)
   {
     SetFreq(f);
@@ -235,6 +252,7 @@ long gradient1(long left_freq, long right_freq)
       delayMicroseconds(WAIT_DELAY_US);
     a = analogRead(AD8302_MAG);
 
+    // update current maximum
     if (a > max_a)
     {
       max_a = a;
@@ -242,6 +260,7 @@ long gradient1(long left_freq, long right_freq)
     }
   }
 
+  // run recursively again with smaller interval and smaller steps
   return gradient1(max_f - 2 * step_size, max_f + 2 * step_size);
 }
 
@@ -257,8 +276,14 @@ const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
 
 long calib_freq = DEFAULT_CALIB_FREQ;
 
+/**
+ * FZU: when you know "dirty" resonant frequency, you scan frequencies 
+ * around the maximum and from the measured data calculate true resonant
+ * frequency using polyfit.
+ */
 double sweepFrequency(long rf)
 {
+  // prepare variables
   String str = String();
   BLA::Matrix<SWEEP_COUNT, 3> A;
   BLA::Matrix<SWEEP_COUNT> b;
@@ -266,10 +291,12 @@ double sweepFrequency(long rf)
   long f = rf - (SWEEP_RANGE / 2);
   double cumsum = 0;
 
+  // stabilize input, not measures anything
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
 
+  // sweep around given frequency
   for (int i = 0; i < SWEEP_COUNT; i++, f += SWEEP_STEP)
   {
     SetFreq(f);
@@ -277,11 +304,13 @@ double sweepFrequency(long rf)
       delayMicroseconds(WAIT_DELAY_US);
     cumsum = 0;
 
+    // use averaging
     for (int j = 0; j < SWEEP_REPEAT; j++)
     {
       cumsum += analogRead(AD8302_MAG);
     }
 
+    // fill matrices and vectors for polyfit
     b(i) = cumsum / (double)SWEEP_REPEAT;
     A(i, 0) = i * i;
     A(i, 1) = i;
@@ -297,13 +326,17 @@ double sweepFrequency(long rf)
 
   //  Serial.println(str);
 
+  // perform polyfit
   BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
+
+  // calculate frequency from indexes
   double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
 
   //  Serial.println(result);
 
   calib_freq = (long)result;
 
+  // check that result is valid, otherwise return -1
   SetFreq(calib_freq);
   delayMicroseconds(WAIT_DELAY_US * 3);
   int la = analogRead(AD8302_MAG);
@@ -320,26 +353,19 @@ double sweepFrequency(long rf)
   return result;
 }
 
+/**
+ * FZU: calculate dissipation from given resonant frequency
+ */
 double dissipation(long rf)
 {
-  // String str = String();
-  // BLA::Matrix<DIS_COUNT> d;
-
-  // long f = rf - (DIS_RANGE / 2);
-  // double cumsum = 0;
-  // double max = 0;
-  // double maxf = -1.0;
-  // double dlf = -1.0;
-  // double drf = -1.0;
   double dis = -1.0;
-  // int maxidx = -1;
-  // int ldis = -1;
-  // int rdis = -1;
 
+  // stabilize input
   SetFreq(rf);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
 
+  // second stabilization
   SetFreq(rf);
   if (WAIT)
     delayMicroseconds(WAIT_DELAY_US);
@@ -350,90 +376,45 @@ double dissipation(long rf)
   int ra = la;
   double boundary = (double)la * 0.707;
   int step = 2048;
-  while (step > 3 && la > 1000) {
-    // if (step < 8) {
-    //   // fl + 2* step;
-    //   break;
-    // }
 
+  // move in steps towards 70.7% boundary for dissipation calc to the left
+  while (step > 3 && la > 1000)
+  {
     SetFreq(fl - step);
     if (WAIT)
       delayMicroseconds(WAIT_DELAY_US);
 
     la = analogRead(AD8302_MAG);
-    if (la > boundary) {
+    if (la > boundary)
+    {
       fl -= step;
-    } else {
-      // fl += step;
+    }
+    else
+    {
       step /= 2;
     }
   }
 
+  // move in steps towards 70.7% boundary for dissipation calc to the right
   step = 2048;
-  while (step > 3 && ra > 1000) {
-    // if (step < 8) {
-    //   // fr + 2* step;
-    //   break;
-    // }
-
+  while (step > 3 && ra > 1000)
+  {
     SetFreq(fr + step);
     if (WAIT)
       delayMicroseconds(WAIT_DELAY_US);
 
     ra = analogRead(AD8302_MAG);
-    if (ra > boundary) {
+    if (ra > boundary)
+    {
       fr += step;
-    } else {
-      // fr -= step;
+    }
+    else
+    {
       step /= 2;
     }
   }
 
-  // Serial.println(fr);
-  // Serial.println(fl);
-  // Serial.println((double)rf / (double)(fr - fl));
-  // Serial.println((double)(fr - fl) / (double)rf,8);
-
-  
-  // for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
-  // {
-  //   SetFreq(f);
-  //   if (WAIT)
-  //     delayMicroseconds(WAIT_DELAY_US);
-  //   cumsum = 0;
-
-  //   for (int j = 0; j < SWEEP_REPEAT; j++)
-  //   {
-  //     cumsum += analogRead(AD8302_MAG);
-  //   }
-
-  //   d(i) = cumsum / (double)SWEEP_REPEAT;
-  //   if (d(i) > max)
-  //   {
-  //     max = d(i);
-  //     maxidx = i;
-  //     maxf = (double)f;
-  //   }
-  // }
-
-  // f = rf - (DIS_RANGE / 2);
-  // for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
-  // {
-  //   if (ldis < 0 && d(i) > 0.707 * max)
-  //   {
-  //     ldis = i;
-  //     dlf = (double)f;
-  //   }
-  //   if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
-  //   {
-  //     rdis = i - 1;
-  //     drf = (double)f;
-  //     break;
-  //   }
-  // }
-  // dis = maxf / (drf - dlf);
-  // dis = (double)(fr - fl) / (double)rf;
-  // str = sprintf("%f",dis)
+  // calculate dissipation (maybe change to quality factor)
   dis = (double)(fr - fl) / (double)rf;
   if (dis * dis > 1)
   {
@@ -442,6 +423,9 @@ double dissipation(long rf)
   return dis;
 }
 
+/**
+ * FZU: only for debugging purposes, don't really look at it.
+ */
 double sweepDebug(long rf)
 {
   String str = String();
@@ -463,7 +447,7 @@ double sweepDebug(long rf)
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
-  
+
   Serial.println(SWEEP_COUNT);
   Serial.println(SWEEP_STEP);
 
@@ -504,8 +488,6 @@ double sweepDebug(long rf)
     }
   }
   dis = maxf / (drf - dlf);
-  // Serial.println(dlf);
-  // Serial.println(drf);
   Serial.println(dis);
 
   f = rf - (SWEEP_RANGE / 2);
@@ -556,6 +538,9 @@ double sweepDebug(long rf)
   return result;
 }
 
+/**
+ * FZU: our version of firmware supports multiple commands
+ */
 int modernRead(String msg)
 {
   long param = msg.substring(2).toInt();
@@ -581,7 +566,7 @@ int modernRead(String msg)
     rf = sweepFrequency(f);
     Serial.println(rf);
     dis = dissipation(rf);
-    Serial.println(dis,9);
+    Serial.println(dis, 9);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
@@ -592,7 +577,7 @@ int modernRead(String msg)
     rf = sweepFrequency(f);
     Serial.println(rf);
     dis = dissipation(rf);
-    Serial.println(dis,9);
+    Serial.println(dis, 9);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
@@ -614,7 +599,8 @@ int modernRead(String msg)
     break;
   case 'R':
     potval_str = msg.substring(1);
-    if (potval_str.toInt() >= 0 && potval_str.toInt() < 256) {
+    if (potval_str.toInt() >= 0 && potval_str.toInt() < 256)
+    {
       POT_VALUE = potval_str.toInt();
       Wire.beginTransmission(ADDRESS);
       Wire.write(0x01);
