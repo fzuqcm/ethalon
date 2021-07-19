@@ -607,6 +607,8 @@ int modernRead(String msg)
     Serial.println(f);
     rf = sweepDebug(f);
     Serial.println(rf);
+    Serial.println(WAIT_DELAY_US);
+    Serial.println(AVERAGE_SAMPLE);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);

@@ -209,24 +209,26 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
                 break
         self.Instrument.close()
         Buff = buffer.splitlines()
-        frl = int(Buff[0])
-        frr = int(Buff[1])
-        fr = int(Buff[2])
-        self.n = int(Buff[3])
-        self.s = int(Buff[4])
-        dis = float(Buff[5])
+        frl = int(Buff[0])                          # calib_freq - DIRTY_RANGE
+        frr = int(Buff[1])                          # calib_freq + DIRTY_RANGE
+        fr = int(Buff[2])                           # f - raw maximum in frequency
+        self.n = int(Buff[3])                       # SWEEP_COUNT
+        self.s = int(Buff[4])                       # SWEEP_STEP
+        dis = float(Buff[5])                        # Dissipation dis = maxf / (drf - dlf);
         self.ff = np.empty(self.n)
         self.aa = np.empty(self.n)
         print('DEBUG:\n',buffer)
         for idx in range(0,self.n):
             # print(n,idx)
-            self.ff[idx] = float(Buff[6+(2*idx)])
-            self.aa[idx] = float(Buff[7+(2*idx)])
+            self.ff[idx] = float(Buff[6+(2*idx)])   # frequency
+            self.aa[idx] = float(Buff[7+(2*idx)])   # magnitude
             # print(idx,self.ff[idx],self.aa[idx])
-        self.a = float(Buff[6 + 2 * self.n])
-        self.b = float(Buff[7 + 2 * self.n])
-        self.c = float(Buff[8 + 2 * self.n])
-        frq = float(Buff[9 + 2 * self.n])
+        self.a = float(Buff[6 + 2 * self.n])        # coeffs(0)
+        self.b = float(Buff[7 + 2 * self.n])        # coeffs(1)
+        self.c = float(Buff[8 + 2 * self.n])        # coeffs(2)
+        frq = float(Buff[9 + 2 * self.n])           # fitted resonance frequency
+        self.wait_us = float(Buff[10 + 2 * self.n]) # Wait before analog read [µsec]
+        self.av_sample = float(Buff[11 + 2 * self.n]) # Wait before analog read [µsec]
         return([frl, frr, fr, frq, dis])
 
     def ZoomButtonClicked(self):
@@ -261,7 +263,7 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
             self.polya[idx] = aaa
             self.polyf[idx] = fff
             # if idx % 32 == 0:
-            #     print(idx,iii,fff,aaa)
+            print(idx,iii,fff,aaa)
             idx += 1
         self.GraphA.plot(self.polyf,self.polya, pen=pg.mkPen(color='#808000', width=2))
 
