@@ -9,8 +9,6 @@
 #include <Wire.h>
 #include "src/Adafruit_MCP9808.h"
 #include <ADC.h>
-#include "MedianFilterLib2.h"
-
 
 /*************************** DEFINE ***************************/
 // potentiometer AD5252 I2C address is 0x2C(44)
@@ -54,10 +52,7 @@ int ledPin2 = 25;
 // ADC init variabl
 boolean WAIT = true;
 // ADC waiting delay microseconds
-// int WAIT_DELAY_US = 300;
-int WAIT_DELAY_US = 100;
-int AVERAGE_COUNT = 50;
-
+int WAIT_DELAY_US = 300;
 // ADC averaging
 boolean AVERAGING = true;
 // inint number of averaging
@@ -68,24 +63,6 @@ int ADC_RESOLUTION = 13;
 // init output ad8302 measurement (cast to double)
 double measure_phase = 0;
 double measure_mag = 0;
-
-
-const int DEFAULT_CALIB_FREQ = 10000000;
-const int DEFAULT_RANGE = 65536;
-
-const int SWEEP_STEP = 32;
-const int SWEEP_RANGE = 1024;
-const int SWEEP_COUNT = SWEEP_RANGE / SWEEP_STEP + 1;
-const int SWEEP_REPEAT = 16;
-
-const int DIS_STEP = 256;
-const int DIS_RANGE = 16384;
-const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
-
-BLA::Matrix<3, SWEEP_COUNT> A_dagger;
-BLA::Matrix<SWEEP_COUNT, 3> A;
-double quad_res;
-double res;
 
 /*************************** FUNCTIONS ***************************/
 
@@ -175,15 +152,6 @@ void setup()
   digitalWrite(ledPin1, HIGH);
   digitalWrite(ledPin2, HIGH);
 
-  for (int i = 0; i < SWEEP_COUNT; i++)
-  {
-    A(i, 0) = i * i;
-    A(i, 1) = i;
-    A(i, 2) = 1;
-  }
-
-  A_dagger = ((~A) * A).Inverse() * (~A);
-
   while (!Serial)
   {
 
@@ -253,110 +221,9 @@ int legacyRead(String msg)
   return 0;
 }
 
-void swap(int *p,int *q) {
-   int t;
-   
-   t=*p; 
-   *p=*q; 
-   *q=t;
-}
-
-void sort(int a[],int n) { 
-   int i,j,temp;
-
-   for(i = 0;i < n-1;i++) {
-      for(j = 0;j < n-i-1;j++) {
-         if(a[j] > a[j+1])
-            swap(&a[j],&a[j+1]);
-      }
-   }
-}
-
-
-
-
-double preciseAmpl(long f)
-{
-  int x = AVERAGE_COUNT;
-
-  SetFreq(f);
-  delayMicroseconds(WAIT_DELAY_US);
-  
-  long double cumsum = 0;
-  for (int i = 0; i < x; i++)
-  {
-    cumsum += analogRead(AD8302_MAG);
-    //delayMicroseconds(5);
-  }
-
-  return cumsum / (double)x;
-}
-
-
-
-double precisePhase(long f)
-{
-  int x = AVERAGE_COUNT;
-
-  SetFreq(f);
-  delayMicroseconds(WAIT_DELAY_US);
-
-  double cumsum = 0;
-  for (int i = 0; i < x; i++)
-  {
-    cumsum += analogRead(AD8302_PHASE);
-  }
-
-  return cumsum / (double)x;
-}
 /****************** FZU: HERE THE ORIGINAL FIRMWARE ENDS **************/
-// 9999000;10001000;40
-/**
- * move in steps towards boundary to the left
- */
-long freq_boundary(long rf, double boundary, bool left)
-{
-  int x = left ? -1 : 1;
-  long f = rf;
-  int ampl = preciseAmpl(f);
-  double b = (double)ampl * boundary;
-  int step = 2048;
 
-  // Serial.print("ampl: ");
-  // Serial.println((double)ampl);
-
-  // Serial.print("rf: ");
-  // Serial.println(rf);
-
-  // Serial.print("Boundary: ");
-  // Serial.println((double)ampl * boundary);
-
-  while (step > 3)
-  {
-    ampl = preciseAmpl(f + (step * x));
-    // Serial.print("A: ");
-    // Serial.println(ampl);
-    // Serial.print("F: ");
-    // Serial.println(f + (step * x));
-    // delay(500);
-    if (ampl > b)
-    {
-      f += (step * x);
-    }
-    else
-    {
-      step /= 2;
-    }
-  }
-
-  // Serial.print("A: ");
-  // Serial.println(ampl);
-  // Serial.print("F: ");
-  // Serial.println(f);
-  return f;
-}
-
-const int DIRTY_NUM = 32;
+const int DIRTY_NUM = 64;
 const int DIRTY_RANGE = 16384;
 
 /**
@@ -365,7 +232,7 @@ const int DIRTY_RANGE = 16384;
  */
 long gradient1(long left_freq, long right_freq)
 {
-  double step_size = (right_freq - left_freq) / DIRTY_NUM;
+  int step_size = (right_freq - left_freq) / DIRTY_NUM;
 
   // recursion ends when step is too small
   if (step_size <= 1)
@@ -380,7 +247,11 @@ long gradient1(long left_freq, long right_freq)
   // scan interval in given steps
   for (long f = left_freq; f <= right_freq; f += step_size)
   {
-    a = preciseAmpl(f);
+    SetFreq(f);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+    a = analogRead(AD8302_MAG);
+
     // update current maximum
     if (a > max_a)
     {
@@ -390,38 +261,18 @@ long gradient1(long left_freq, long right_freq)
   }
 
   // run recursively again with smaller interval and smaller steps
-  return gradient1(max_f -  2* step_size, max_f + 2 * step_size);
+  return gradient1(max_f - 2 * step_size, max_f + 2 * step_size);
 }
 
-long gradient2(long left_freq, long right_freq)
-{
-  double step_size = (right_freq - left_freq) / DIRTY_NUM;
-
-  // recursion ends when step is too small
-  if (step_size <= 0.5)
-  {
-    return left_freq + (DIRTY_NUM / 2) * step_size;
-  }
-
-  int a;
-  int max_a = 0;
-  int max_f = 0;
-
-  // scan interval in given steps
-  for (long f = left_freq; f <= right_freq; f += step_size)
-  {
-    a = precisePhase(f);
-    // update current maximum
-    if (a > max_a)
-    {
-      max_a = a;
-      max_f = f;
-    }
-  }
-
-  // run recursively again with smaller interval and smaller steps
-  return gradient1(max_f -  2* step_size, max_f + 2 * step_size);
-}
+const int DEFAULT_CALIB_FREQ = 10000000;
+const int DEFAULT_RANGE = 65536;
+const int SWEEP_STEP = 32;
+const int SWEEP_RANGE = 1024;
+const int SWEEP_COUNT = SWEEP_RANGE / SWEEP_STEP + 1;
+const int SWEEP_REPEAT = 16;
+const int DIS_STEP = 256;
+const int DIS_RANGE = 16384;
+const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
 
 long calib_freq = DEFAULT_CALIB_FREQ;
 
@@ -433,82 +284,71 @@ long calib_freq = DEFAULT_CALIB_FREQ;
 double sweepFrequency(long rf)
 {
   // prepare variables
-//  String str = String();
-
+  String str = String();
+  BLA::Matrix<SWEEP_COUNT, 3> A;
   BLA::Matrix<SWEEP_COUNT> b;
 
   long f = rf - (SWEEP_RANGE / 2);
+  double cumsum = 0;
 
   // stabilize input, not measures anything
-  preciseAmpl(f);
+  SetFreq(f);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  analogRead(AD8302_MAG);
 
   // sweep around given frequency
   for (int i = 0; i < SWEEP_COUNT; i++, f += SWEEP_STEP)
-  { 
+  {
+    SetFreq(f);
+    if (WAIT)
+      delayMicroseconds(WAIT_DELAY_US);
+    cumsum = 0;
+
+    // use averaging
+    for (int j = 0; j < SWEEP_REPEAT; j++)
+    {
+      cumsum += analogRead(AD8302_MAG);
+    }
+
     // fill matrices and vectors for polyfit
-    // use of preciseAmpl over PreciseAmplMedian is recommeded for 
-    b(i) = preciseAmpl(f);
+    b(i) = cumsum / (double)SWEEP_REPEAT;
+    A(i, 0) = i * i;
+    A(i, 1) = i;
+    A(i, 2) = 1;
 
-    //cooldown frequency
-    preciseAmpl(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f)); 
+    // if (b(i) < 3000)
+    // {
+    //   return -b(i); //-1;
+    // }
+
+    str.concat(b(i)).concat(';');
   }
 
-  BLA::Matrix<3> coeffs = A_dagger * b;
-  
-  quad_res = 0;
-  for (int i = 0; i < SWEEP_COUNT; i++)
-  { 
-     res = b(i) - (coeffs(0)*i*i + coeffs(1)*i + coeffs(2));
-     quad_res += res*res;
-  }
-  quad_res = quad_res/SWEEP_COUNT;
-  
+  //  Serial.println(str);
+
+  // perform polyfit
+  BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
+
   // calculate frequency from indexes
   double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
 
+  //  Serial.println(result);
 
   calib_freq = (long)result;
 
-  return result;
-}
-
-double sweepPhase(long rf)
-{
-  // not recommended because of phase curve shape - parabola doesn't fit well
-
-  BLA::Matrix<SWEEP_COUNT> b;
-
-  double contraction_factor = 30;
-  long f = rf - (SWEEP_RANGE / 4);
-
-  // stabilize input, not measures anything
-  preciseAmpl(f);
-
-  // sweep around given frequency
-  for (int i = 0; i < SWEEP_COUNT; i++, f += double (SWEEP_STEP/contraction_factor))
-  { 
-    // fill matrices and vectors for polyfit
-    b(i) = precisePhase(f);
-
-    //cooldown frequency
-    precisePhase(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f)); 
+  // check that result is valid, otherwise return -1
+  SetFreq(calib_freq);
+  delayMicroseconds(WAIT_DELAY_US * 3);
+  int la = analogRead(AD8302_MAG);
+  double sum = 0;
+  for (int i = 1; i < 10; i++)
+  {
+    sum += b(i);
   }
-
-  BLA::Matrix<3> coeffs = A_dagger * b;
-  
-  quad_res = 0;
-  for (int i = 0; i < SWEEP_COUNT; i++)
-  { 
-     res = b(i) - (coeffs(0)*i*i + coeffs(1)*i + coeffs(2));
-     quad_res += res*res;
+  if (sum < 10000)
+  {
+    return -1;
   }
-  quad_res = quad_res/SWEEP_COUNT;
-  
-  // calculate frequency from indexes
-  double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
-
-
-  calib_freq = (long)result;
 
   return result;
 }
@@ -668,9 +508,9 @@ double sweepDebug(long rf)
     }
 
     b(i) = cumsum / (double)SWEEP_REPEAT;
-    // A(i, 0) = i * i;
-    // A(i, 1) = i;
-    // A(i, 2) = 1;
+    A(i, 0) = i * i;
+    A(i, 1) = i;
+    A(i, 2) = 1;
 
     Serial.println(f);
     Serial.println(b(i));
@@ -685,8 +525,7 @@ double sweepDebug(long rf)
 
   //  Serial.println(str);
 
-  BLA::Matrix<3> coeffs = A_dagger * b;
-  // BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
+  BLA::Matrix<3> coeffs = ((~A) * A).Inverse() * (~A) * b;
   double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
 
   Serial.println(coeffs(0));
@@ -704,82 +543,23 @@ double sweepDebug(long rf)
  */
 int modernRead(String msg)
 {
-  // long param = msg.substring(2).toInt();
+  long param = msg.substring(2).toInt();
   char cmd = msg.charAt(0);
-
-  // int idx = msg.indexOf(':');
-  // // Serial.println(idx);
-  // msg = msg.substring(idx + 1);
-  // idx = msg.indexOf(':');
-  // // Serial.println(idx);
-  // int a = msg.substring(0, idx).toInt();
-  // int b = msg.substring(idx + 1).toInt();
-  
   long f;
   double rf, dis;
-  // double rf, dis, p, pp;
   float t;
-  double x;
-  // double test_value;
-  int k = 6;
-  int w, e;
-  int g;
+  // String dis = String();
 
   switch (cmd)
   {
-  
-  case 'v':
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    
-    Serial.println(f);
-    
-    for (e =-200; e<200; e++){
-      g = f+4*e;
-      Serial.println(preciseAmpl(g));
-      //cooldown frequency
-      preciseAmpl(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f));
-      }
-    
-  break;
-  
-  case 'w':
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    //f = 10001241;
-    Serial.println(f);
-    delayMicroseconds(100);
-    for (e =-200; e<200; e++){
-      SetFreq(f+4*e);
-      delayMicroseconds(WAIT_DELAY_US);
-        for (w = 0; w< 100; w++){
-        Serial.println(analogRead(AD8302_MAG));
-          delayMicroseconds(100);
-      }
-    }
-  break;
-  
   case 'c':
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
-    delay(150);
     Serial.println(rf);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     Serial.println(t);
     break;
-
-  case 'j':
-    //rf = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
-    x += gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    
-    rf = sweepFrequency(x);
-    Serial.println(rf);
-    dis = dissipation(rf);
-    Serial.println(dis, 9);
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    Serial.println(t);
-    break;
-
   case 'm':
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
@@ -791,11 +571,6 @@ int modernRead(String msg)
     t = tempsensor.readTempC();
     Serial.println(t);
     break;
-
-  case 't':
-    Serial.println("test");   
-    break;
-
   case 'M':
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
@@ -808,7 +583,6 @@ int modernRead(String msg)
     Serial.println(t);
     Serial.println("s");
     break;
-
   case 'D':
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
@@ -825,7 +599,6 @@ int modernRead(String msg)
     Serial.println(t);
     Serial.println("s");
     break;
-    
   case 'R':
     potval_str = msg.substring(1);
     if (potval_str.toInt() >= 0 && potval_str.toInt() < 256)
@@ -837,7 +610,6 @@ int modernRead(String msg)
       Wire.endTransmission();
     }
     break;
-    
   default:
     return 1;
   }
@@ -865,7 +637,7 @@ void loop()
 
   int retVal;
   if (useModern)
-    {
+  {
     retVal = modernRead(msg);
   }
   else
