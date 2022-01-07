@@ -773,11 +773,11 @@ int modernRead(String msg)
     
     rf = sweepFrequency(x);
     Serial.println(rf);
-    dis = dissipation(rf);
-    Serial.println(dis, 9);
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    Serial.println(t);
+    //dis = dissipation(rf);
+    //Serial.println(dis, 9);
+    //tempsensor.shutdown_wake(0);
+    //t = tempsensor.readTempC();
+    //Serial.println(t);
     break;
 
   case 'm':
