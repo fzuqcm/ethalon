@@ -1,18 +1,23 @@
 /***********************************************************
- * FZU: This is a FZU version of firmware. Some parts are not changed from the Italien one,
+ * FZU: This is a FZU version of QCM firmware. Some parts are not changed from the Italien one,
  * because it is only setting up the digital inputs and outputs.
  ***********************************************************/
 
 /******************************* LIBRARIES *****************************/
 /** FZU: YOU NEED TO INSTALL BasicLinearAlgebra LIBRARY FROM THE MENU **/
+#include <ArduinoJson.h>
 #include <BasicLinearAlgebra.h>
 #include <Wire.h>
 #include "src/Adafruit_MCP9808.h"
 #include <ADC.h>
-#include "MedianFilterLib2.h"
-
+// #include "MedianFilterLib2.h"
 
 /*************************** DEFINE ***************************/
+#define FW_NAME "FZU QCM Firmware"
+#define FW_VERSION "3.00"
+#define FW_DATE "14.01.2022"
+#define FW_AUTHOR "Anonymous"
+
 // potentiometer AD5252 I2C address is 0x2C(44)
 #define ADDRESS 0x2C
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
@@ -87,6 +92,12 @@ BLA::Matrix<SWEEP_COUNT, 3> A;
 double quad_res;
 double res;
 
+StaticJsonDocument<256> fw;
+StaticJsonDocument<4096> data;
+JsonArray magValues = data.createNestedArray("magnitude");
+JsonArray phaseValues = data.createNestedArray("phase");
+uint64_t dseq = 0;
+
 /*************************** FUNCTIONS ***************************/
 
 /* AD9851 set frequency fucntion */
@@ -98,7 +109,7 @@ void SetFreq(long frequency)
 
   long pointer = 1;
   int pointer2 = 0b10000000;
-  int lastByte = 0b10000000;
+  // int lastByte = 0b10000000;
 
   /* 32 bit dds tuning word frequency instructions */
   for (int i = 0; i < 32; i++)
@@ -184,6 +195,11 @@ void setup()
 
   A_dagger = ((~A) * A).Inverse() * (~A);
 
+  fw["name"] = FW_NAME;
+  fw["version"] = FW_VERSION;
+  fw["date"] = FW_DATE;
+  fw["author"] = FW_AUTHOR;
+
   while (!Serial)
   {
 
@@ -262,7 +278,7 @@ void swap(int *p,int *q) {
 }
 
 void sort(int a[],int n) { 
-   int i,j,temp;
+   int i,j;
 
    for(i = 0;i < n-1;i++) {
       for(j = 0;j < n-i-1;j++) {
@@ -600,7 +616,7 @@ double sweepDebug(long rf)
   double dlf = -1.0;
   double drf = -1.0;
   double dis = -1.0;
-  int maxidx = -1;
+  // int maxidx = -1;
   int ldis = -1;
   int rdis = -1;
 
@@ -627,7 +643,7 @@ double sweepDebug(long rf)
     if (d(i) > max)
     {
       max = d(i);
-      maxidx = i;
+      // maxidx = i;
       maxf = (double)f;
     }
   }
@@ -707,28 +723,21 @@ int modernRead(String msg)
   // long param = msg.substring(2).toInt();
   char cmd = msg.charAt(0);
 
-  // int idx = msg.indexOf(':');
-  // // Serial.println(idx);
-  // msg = msg.substring(idx + 1);
-  // idx = msg.indexOf(':');
-  // // Serial.println(idx);
-  // int a = msg.substring(0, idx).toInt();
-  // int b = msg.substring(idx + 1).toInt();
-  
   long f;
-  double rf, dis;
-  // double rf, dis, p, pp;
+  double rf, dis, x;
   float t;
-  double x;
-  // double test_value;
-  int k = 6;
-  int w, e;
-  int g;
+  int w, e, g;
+
+  double measure_phase = 0;
+  double measure_mag = 0;
+  int rf_cnt = 128;
+  int rf_step = 40;
+  long rf_hb = rf_cnt * rf_step / 2;
 
   switch (cmd)
   {
   
-  case 'v':
+  case 'v': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     
     Serial.println(f);
@@ -742,7 +751,7 @@ int modernRead(String msg)
     
   break;
   
-  case 'w':
+  case 'w': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     //f = 10001241;
     Serial.println(f);
@@ -757,7 +766,7 @@ int modernRead(String msg)
     }
   break;
   
-  case 'c':
+  case 'c': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     delay(150);
@@ -767,9 +776,9 @@ int modernRead(String msg)
     Serial.println(t);
     break;
 
-  case 'j':
+  case 'j': // only frequency measurement for Jakub 'case' algorithm
     //rf = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
-    x += gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    x = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     
     rf = sweepFrequency(x);
     Serial.println(rf);
@@ -780,7 +789,7 @@ int modernRead(String msg)
     //Serial.println(t);
     break;
 
-  case 'm':
+  case 'm': // main measurement
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
@@ -792,11 +801,63 @@ int modernRead(String msg)
     Serial.println(t);
     break;
 
+  case 'n': // main measurement to json
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    data["id"] = ++dseq;
+    data["frequency"] = rf;
+    dis = dissipation(rf);
+    data["dissipation"] = dis;
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    data["temperature"] = t;
+    serializeJsonPretty(data,Serial);
+    Serial.println();
+    break;
+
+  case 'r': // main measurement with resonance curves to json
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    data["id"] = ++dseq;
+    data["frequency"] = rf;
+    dis = dissipation(rf);
+    data["dissipation"] = dis;
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    data["temperature"] = t;
+    for (long f = rf - rf_hb; f <= rf + rf_hb; f += rf_step)
+    {
+      SetFreq(f);
+      if (WAIT)
+        delayMicroseconds(WAIT_DELAY_US);
+      int app_phase = 0;
+      int app_mag = 0;
+      for (int i = 0; i < AVERAGE_SAMPLE; i++)
+      {
+        app_phase += analogRead(AD8302_PHASE);
+        app_mag += analogRead(AD8302_MAG);
+      }
+      measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
+      measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
+      magValues.add(measure_mag);
+      phaseValues.add(measure_phase);
+    }
+    serializeJsonPretty(data,Serial);
+    Serial.println();
+    magValues.clear();
+    phaseValues.clear();
+    break;
+
+  case 'i':
+    serializeJsonPretty(fw,Serial);
+    Serial.println();
+    break;
+
   case 't':
     Serial.println("test");   
     break;
 
-  case 'M':
+  case 'M': // only for debug
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
@@ -809,7 +870,7 @@ int modernRead(String msg)
     Serial.println("s");
     break;
 
-  case 'D':
+  case 'D': // only for debug
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     // rf = sweepFrequency(f);
