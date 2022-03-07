@@ -120,6 +120,13 @@ class Ui_MainWindow(object):
         self.DefaultViewButton.setObjectName("DefaultViewButton")
         self.horizontalLayout.addWidget(self.DefaultViewButton)
 
+        spacerItem6 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem6)
+
+        self.AutoButton = QtWidgets.QPushButton(self.groupBox)
+        self.AutoButton.setObjectName("AutoButton")
+        self.horizontalLayout.addWidget(self.AutoButton)
+
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem2)
 
@@ -196,6 +203,7 @@ class Ui_MainWindow(object):
         self.OpenButton.setText(_translate("MainWindow", "Show spectrum"))
         self.ZoomButton.setText(_translate("MainWindow", "Zoom"))
         self.DefaultViewButton.setText(_translate("MainWindow", "Set Pot"))
+        self.AutoButton.setText(_translate("MainWindow", "Auto"))
         self.DebugButton.setText(_translate("MainWindow", "Debug"))
         self.label.setText(_translate("MainWindow", "File name"))
         self.ExportButton.setText(_translate("MainWindow", "Save as fig."))

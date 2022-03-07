@@ -67,6 +67,8 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
     a = 0
     b = 0
     c = 0
+    auto = 0
+    inplot = 0
 
     def __init__(self):
         super(self.__class__, self).__init__()
@@ -75,6 +77,7 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         self.OpenButton.clicked.connect(self.OpenButtonClicked)
         self.ZoomButton.clicked.connect(self.ZoomButtonClicked)
         self.DefaultViewButton.clicked.connect(self.DefaultViewButtonClicked)
+        self.AutoButton.clicked.connect(self.AutoButtonClicked)
         self.DebugButton.clicked.connect(self.DebugButtonClicked)
         self.ExportButton.clicked.connect(self.ExportButtonClicked)
 
@@ -103,6 +106,11 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         self.GraphB.setLimits(xMin=0)
         self.GraphB.setBackground('#FFFFFF')
         self.GraphB.showGrid(x=True,y=True)
+
+        # self.autoTimer = pg.QtCore.QTimer(singleShot = False, timeout = 100)
+        self.autoTimer = pg.QtCore.QTimer()
+        self.autoTimer.timeout.connect(self.showPlot)
+        self.autoTimer.start(100)
         
     def closeEvent(self, event):
         event.accept()
@@ -267,6 +275,40 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
             idx += 1
         self.GraphA.plot(self.polyf,self.polya, pen=pg.mkPen(color='#808000', width=2))
 
+    def measurePlot(self):
+        lowF = int(self.lowLabel.text())
+        highF = int(self.highLabel.text())
+        stepF = int(self.stepLabel.text())
+        self.readData(lowF, highF, stepF)
+        self.plotData()
+        
+    def OpenButtonClicked(self):
+        self.measurePlot()
+
+    def showPlot(self):
+        if self.inplot or self.auto == 0:
+            return
+        self.inplot = 1
+        self.measurePlot()
+        self.inplot = 0
+
+    def AutoButtonClicked(self):
+        if self.auto:
+            self.auto = 0
+            self.AutoButton.setStyleSheet("background-color: none")
+            font = QtGui.QFont()
+            font.setPointSize(7)
+            self.AutoButton.setFont(font)
+        else:
+            self.auto = 1
+            self.AutoButton.setStyleSheet("background-color: green")
+        # self.measurePlot()
+        # lowF = int(self.lowLabel.text())
+        # highF = int(self.highLabel.text())
+        # stepF = int(self.stepLabel.text())
+        # self.readData(lowF, highF, stepF)
+        # self.plotData()
+
     def DebugButtonClicked(self):
         self.Instrument.port = self.PortName
         self.Instrument.open()
@@ -283,108 +325,3 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         self.Instrument.close()
         Buff = buffer.splitlines()
         print('DEBUG:\n',buffer)
-        # [frr, frl, fr, frq] = self.readMax()
-        # print('Frl = ',frl,'Fr = ',fr,'Frr = ',frr,'Frq = ',frr)
-        # self.GraphA.plot([frl,frl], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
-        # self.GraphA.plot([fr,fr], [0,4500], pen=pg.mkPen(color='#FF00FF', width=3))
-        # self.GraphA.plot([frr,frr], [0,4500], pen=pg.mkPen(color='#00FF00', width=2))
-        # self.GraphA.plot([frq,frq], [0,4500], pen=pg.mkPen(color='#FF0000', width=2)) #symbol='o')
-
-    def OpenButtonClicked(self):
-        # self.PortSelect.setEnabled(False)
-        # self.Instrument.port = self.PortName
-        # self.Instrument.open()
-        # self.Instrument.timeout = 0
-
-        lowF = int(self.lowLabel.text())
-        highF = int(self.highLabel.text())
-        stepF = int(self.stepLabel.text())
- 
-        # cmd = str(self.lowLabel.text()) + ';' + str(self.highLabel.text()) + ';' + str(self.stepLabel.text()) + '\n'
-        # print(cmd)
-        # self.Instrument.write(cmd.encode())
-
-        # app_encoding = "utf-8"
-        # buffer = ''
-        # while 1:
-        #     buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
-        #     if 's' in buffer:
-        #         break
-        # print(buffer)
-
-        # self.Instrument.close()
-
-        self.readData(lowF, highF, stepF)
-        self.plotData()
-        # self.readMax()
-        # buff = self.Buff #buffer.splitlines()
-        # print(len(buff))
-        # print(buff[1])
-        # frequency = np.empty(len(buff)-2)
-        # ampl = np.empty(len(buff)-2)
-        # phase = np.empty(len(buff)-2)
-        # idx = 0
-        # for freq in range(lowF, highF + 1, step):
-        #     if idx > 0:
-        #         am, ph = buff[idx-1].split(';')
-        #         frequency[idx-1] = float(freq)
-        #         ampl[idx-1] = float(am)
-        #         phase[idx-1] = float(ph)
-            # print(idx, freq, str(ampl[idx]), str(phase[idx]))
-            # text = pg.TextItem(html='<div style="text-align: center"><span style="color: #000000;"> %s</span></div>',anchor=(0.5, -1))
-            # text.setText('%s'%str(ampl[idx]))
-            # idx += 1
-
-        # dialog = QtWidgets.QFileDialog(self)
-        # dialog.setNameFilter('*.qcm')
-        # dialog.open()
-        # if dialog.exec():
-        #     fname = dialog.selectedFiles()[0]
-        #     F = open(fname,'rb')
-            
-        #     FreqShiftA = pickle.load(F)
-        #     MarksXPosA = pickle.load(F)
-        #     MarksYPosA = pickle.load(F)
-        #     MarksTextA = pickle.load(F)
-
-        # hour = [1,2,3,4,5,6,7,8,9,10]
-        # temperature = [30,32,34,32,33,31,29,32,35,45]
-        # self.GraphA.plot(hour, temperature)
-        # print(frequency)
-
-        # self.GraphA.clear()
-        # self.GraphA.plot(frequency,ampl, pen=pg.mkPen(color='#0000FF', width=3))
-
-        # self.GraphB.clear()
-        # self.GraphB.plot(frequency,phase, pen=pg.mkPen(color='#007F00', width=3))
-        # self.GraphB.plot(range(0,len(phase)),phase, pen=pg.mkPen(color='#00FF00', width=3))
-
-        #     for x in range(0,len(MarksTextA)):
-        #         text = pg.TextItem(html='<div style="text-align: center"><span style="color: #000000;"> %s</span></div>',anchor=(0.5, -1)) 
-        #         text.setText('%s'%str(MarksTextA[x]))
-        #         text.setPos(MarksXPosA[x], MarksYPosA[x])
-        #         self.GraphA.addItem(text)
-        #         arrow = pg.ArrowItem(angle=90,brush='000000')
-        #         arrow.setPos(MarksXPosA[x], MarksYPosA[x])
-        #         self.GraphA.addItem(arrow)
-
-        #     self.GraphA.enableAutoRange('xy')
-
-        #     FreqShiftB = pickle.load(F)
-        #     MarksXPosB = pickle.load(F)
-        #     MarksYPosB = pickle.load(F)
-        #     MarksTextB = pickle.load(F)
-
-        #     self.GraphB.clear()
-        #     self.GraphB.plot(range(0,len(FreqShiftB)),FreqShiftB, pen=pg.mkPen(color='#00FF00', width=3))
-            
-        #     for x in range(0,len(MarksTextB)):
-        #         text = pg.TextItem(html='<div style="text-align: center"><span style="color: #000000;"> %s</span></div>',anchor=(0.5, -1)) 
-        #         text.setText('%s'%str(MarksTextB[x]))
-        #         text.setPos(MarksXPosB[x], MarksYPosB[x])
-        #         self.GraphB.addItem(text)
-        #         arrow = pg.ArrowItem(angle=90,brush='000000')
-        #         arrow.setPos(MarksXPosB[x], MarksYPosB[x])
-        #         self.GraphB.addItem(arrow)
-
-        #     self.GraphB.enableAutoRange('xy')
