@@ -10,13 +10,16 @@
 #include <Wire.h>
 #include "src/Adafruit_MCP9808.h"
 #include <ADC.h>
+#include "Arduino.h"
+#include <TeensyID.h>
 // #include "MedianFilterLib2.h"
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.00"
-#define FW_DATE "14.01.2022"
-#define FW_AUTHOR "Anonymous"
+#define FW_VERSION "3.02"
+#define FW_DATE "6.4.2022"
+#define FW_AUTHOR "FZU Team"
+#define HW "Teensy 3.6"
 
 // potentiometer AD5252 I2C address is 0x2C(44)
 #define ADDRESS 0x2C
@@ -24,6 +27,8 @@
 // #define POT_VALUE 240 //254
 // reference clock
 #define REFCLK 125000000
+
+char SN[7] = "0000000";
 
 /*************************** VARIABLE DECLARATION ***************************/
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
@@ -36,7 +41,7 @@ int WCLK = A8;
 int DATA = A9;
 int FQ_UD = A1;
 // frequency tuning word
-long FTW;
+unsigned long FTW;
 float temp_FTW; // temporary variable
 // phase comparator AD8302 pinout
 int AD8302_PHASE = 20;
@@ -105,7 +110,7 @@ void SetFreq(long frequency)
 {
   // set to 125 MHz internal clock
   temp_FTW = (frequency * pow(2, 32)) / REFCLK;
-  FTW = long(temp_FTW);
+  FTW = (unsigned long)temp_FTW;
 
   long pointer = 1;
   int pointer2 = 0b10000000;
@@ -199,6 +204,9 @@ void setup()
   fw["version"] = FW_VERSION;
   fw["date"] = FW_DATE;
   fw["author"] = FW_AUTHOR;
+  fw["hw"] = "Teensy 3.6";
+  sprintf(SN, "%u", teensyUsbSN());
+  fw["sn"] = SN;
 
   while (!Serial)
   {
@@ -853,8 +861,32 @@ int modernRead(String msg)
     Serial.println();
     break;
 
+  case 's':
+    Serial.printf("%u", teensyUsbSN());
+    break;
+
   case 't':
-    Serial.println("test");   
+    // read_myID();
+    Serial.println("test");
+    // print_myID();
+    // uint8_t serial[4];
+    // uint8_t mac[6];
+    // uint32_t uid[4];
+    // uint8_t uuid[16];
+    // teensySN(serial);
+    // teensyMAC(mac);
+    // kinetisUID(uid);
+    // teensyUUID(uuid);
+    // delay(2000);
+    // Serial.printf("USB Serialnumber: %u \n", teensyUsbSN());
+    // Serial.printf("Array Serialnumber: %02X-%02X-%02X-%02X \n", serial[0], serial[1], serial[2], serial[3]);
+    // Serial.printf("String Serialnumber: %s\n", teensySN());
+    // Serial.printf("Array MAC Address: %02X:%02X:%02X:%02X:%02X:%02X \n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    // Serial.printf("String MAC Address: %s\n", teensyMAC());
+    // Serial.printf("Array 128-bit UniqueID from chip: %08X-%08X-%08X-%08X\n", uid[0], uid[1], uid[2], uid[3]);
+    // Serial.printf("String 128-bit UniqueID from chip: %s\n", kinetisUID());
+    // Serial.printf("Array 128-bit UUID RFC4122: %02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X\n", uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+    // Serial.printf("String 128-bit UUID RFC4122: %s\n", teensyUUID());
     break;
 
   case 'M': // only for debug
