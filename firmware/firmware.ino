@@ -16,17 +16,25 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.02"
-#define FW_DATE "6.4.2022"
+#define FW_VERSION "3.1.0"
+#define FW_DATE "14.4.2022"
 #define FW_AUTHOR "FZU Team"
 #define HW "Teensy 3.6"
 
 // potentiometer AD5252 I2C address is 0x2C(44)
-#define ADDRESS 0x2C
+// #define POT_ADDRESS 0x2C
+#define POT_ADDRESS 0x2D
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
 // #define POT_VALUE 240 //254
 // reference clock
-#define REFCLK 125000000
+// #define REFCLK 125000000
+#define REFQ 12000000
+#define USE_MULTIPLIER
+#ifdef  USE_MULTIPLIER
+  #define  REFCLK (REFQ*6)
+#else  
+  #define REFCLK REFQ
+#endif  
 
 char SN[7] = "0000000";
 
@@ -58,8 +66,9 @@ Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 //float temperature = 0;
 
 // LED pin
-int ledPin1 = 24;
-int ledPin2 = 25;
+int LED1 = 24;
+int LED2 = 25;
+int LED3 = 26;
 
 // ADC init variabl
 boolean WAIT = true;
@@ -114,8 +123,14 @@ void SetFreq(long frequency)
 
   long pointer = 1;
   int pointer2 = 0b10000000;
+  #ifdef  USE_MULTIPLIER
+    int lastByte = 0b10000000;
+  #else  
+    int lastByte = 0b00000000;
+  #endif    
   // int lastByte = 0b10000000;
 
+  #define DELAY 1 
   /* 32 bit dds tuning word frequency instructions */
   for (int i = 0; i < 32; i++)
   {
@@ -123,24 +138,32 @@ void SetFreq(long frequency)
       digitalWrite(DATA, HIGH);
     else
       digitalWrite(DATA, LOW);
+    delayMicroseconds(DELAY);
     digitalWrite(WCLK, HIGH);
+    delayMicroseconds(DELAY);
     digitalWrite(WCLK, LOW);
+    delayMicroseconds(DELAY);
     pointer = pointer << 1;
   }
 
   /* 8 bit dds phase and x6 multiplier refclock*/
   for (int i = 0; i < 8; i++)
   {
-    //if ((lastByte & pointer2) > 0) digitalWrite(DATA, HIGH);
-    //else digitalWrite(DATA, LOW);
-    digitalWrite(DATA, LOW);
+    if ((lastByte & pointer2) > 0) digitalWrite(DATA, HIGH);
+    else digitalWrite(DATA, LOW);
+    // digitalWrite(DATA, LOW);
+    delayMicroseconds(DELAY);
     digitalWrite(WCLK, HIGH);
+    delayMicroseconds(DELAY);
     digitalWrite(WCLK, LOW);
+    delayMicroseconds(DELAY);
     pointer2 = pointer2 >> 1;
   }
 
   digitalWrite(FQ_UD, HIGH);
+  delayMicroseconds(DELAY);
   digitalWrite(FQ_UD, LOW);
+  delayMicroseconds(DELAY);
 
   //FTW = 0;
 }
@@ -155,7 +178,7 @@ void setup()
 
   // set potentiometer value
   // Start I2C transmission
-  Wire.beginTransmission(ADDRESS);
+  Wire.beginTransmission(POT_ADDRESS);
   // Send instruction for POT channel-0
   Wire.write(0x01);
   // Input resistance value, 0x80(128)
@@ -186,10 +209,16 @@ void setup()
   tempsensor.begin();
 
   // turn on the light
-  pinMode(ledPin1, OUTPUT);
-  pinMode(ledPin2, OUTPUT);
-  digitalWrite(ledPin1, HIGH);
-  digitalWrite(ledPin2, HIGH);
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
+  pinMode(LED3, OUTPUT);
+  digitalWrite(LED1, HIGH);
+  digitalWrite(LED2, HIGH);
+  digitalWrite(LED3, HIGH);
+  delay(500);
+  digitalWrite(LED1, LOW);
+  digitalWrite(LED2, LOW);
+  digitalWrite(LED3, LOW);
 
   for (int i = 0; i < SWEEP_COUNT; i++)
   {
@@ -865,6 +894,19 @@ int modernRead(String msg)
     Serial.printf("%u", teensyUsbSN());
     break;
 
+  case 'k':
+    digitalWrite(LED1, HIGH);
+    float temp = tempsensor.readTempC();
+    Serial.print("Teplota: ");
+    Serial.print(temp);
+    Serial.println(" °C");
+    SetFreq(10000000); //long frequency
+    
+    delay(500);
+    digitalWrite(LED1, LOW);
+    delay(500);
+    break;
+
   case 't':
     // read_myID();
     Serial.println("test");
@@ -924,7 +966,7 @@ int modernRead(String msg)
     if (potval_str.toInt() >= 0 && potval_str.toInt() < 256)
     {
       POT_VALUE = potval_str.toInt();
-      Wire.beginTransmission(ADDRESS);
+      Wire.beginTransmission(POT_ADDRESS);
       Wire.write(0x01);
       Wire.write(POT_VALUE);
       Wire.endTransmission();
