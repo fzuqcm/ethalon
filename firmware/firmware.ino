@@ -16,8 +16,8 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.1.0"
-#define FW_DATE "14.4.2022"
+#define FW_VERSION "3.1.1"
+#define FW_DATE "19.4.2022"
 #define FW_AUTHOR "FZU Team"
 #define HW "Teensy 3.6"
 
@@ -73,8 +73,8 @@ int LED3 = 26;
 // ADC init variabl
 boolean WAIT = true;
 // ADC waiting delay microseconds
-// int WAIT_DELAY_US = 300;
-int WAIT_DELAY_US = 100;
+int WAIT_DELAY_US = 300;
+// int WAIT_DELAY_US = 100;
 int AVERAGE_COUNT = 50;
 
 // ADC averaging
@@ -115,7 +115,7 @@ uint64_t dseq = 0;
 /*************************** FUNCTIONS ***************************/
 
 /* AD9851 set frequency fucntion */
-void SetFreq(long frequency)
+void SetFreq(unsigned long frequency)
 {
   // set to 125 MHz internal clock
   temp_FTW = (frequency * pow(2, 32)) / REFCLK;
@@ -573,16 +573,21 @@ double dissipation(long rf)
 {
   double dis = -1.0;
 
+  Serial.println(dis);
+  Serial.println(0);
   // stabilize input
   SetFreq(rf);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
+  Serial.println(rf);
 
   // second stabilization
   SetFreq(rf);
+  Serial.println(1);
   if (WAIT)
     delayMicroseconds(WAIT_DELAY_US);
 
+  Serial.println(2);
   long fl = rf;
   long fr = rf;
   int la = analogRead(AD8302_MAG);
@@ -590,9 +595,16 @@ double dissipation(long rf)
   double boundary = (double)la * 0.707;
   int step = 2048;
 
+  Serial.println(3);
+
   // move in steps towards 70.7% boundary for dissipation calc to the left
   while (step > 3 && la > 1000)
   {
+    Serial.println(fl);
+    Serial.println(step);
+    Serial.println(la);
+    Serial.println(boundary);
+    Serial.println(-1);
     SetFreq(fl - step);
     if (WAIT)
       delayMicroseconds(WAIT_DELAY_US);
@@ -608,6 +620,7 @@ double dissipation(long rf)
     }
   }
 
+  Serial.println(4);
   // move in steps towards 70.7% boundary for dissipation calc to the right
   step = 2048;
   while (step > 3 && ra > 1000)
@@ -627,12 +640,17 @@ double dissipation(long rf)
     }
   }
 
+  Serial.println(5);
   // calculate dissipation (maybe change to quality factor)
   dis = (double)(fr - fl) / (double)rf;
+  Serial.println(6);
+
   if (dis * dis > 1)
   {
     dis = -1;
   }
+  Serial.println(dis);
+
   return dis;
 }
 
@@ -908,27 +926,7 @@ int modernRead(String msg)
     break;
 
   case 't':
-    // read_myID();
     Serial.println("test");
-    // print_myID();
-    // uint8_t serial[4];
-    // uint8_t mac[6];
-    // uint32_t uid[4];
-    // uint8_t uuid[16];
-    // teensySN(serial);
-    // teensyMAC(mac);
-    // kinetisUID(uid);
-    // teensyUUID(uuid);
-    // delay(2000);
-    // Serial.printf("USB Serialnumber: %u \n", teensyUsbSN());
-    // Serial.printf("Array Serialnumber: %02X-%02X-%02X-%02X \n", serial[0], serial[1], serial[2], serial[3]);
-    // Serial.printf("String Serialnumber: %s\n", teensySN());
-    // Serial.printf("Array MAC Address: %02X:%02X:%02X:%02X:%02X:%02X \n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    // Serial.printf("String MAC Address: %s\n", teensyMAC());
-    // Serial.printf("Array 128-bit UniqueID from chip: %08X-%08X-%08X-%08X\n", uid[0], uid[1], uid[2], uid[3]);
-    // Serial.printf("String 128-bit UniqueID from chip: %s\n", kinetisUID());
-    // Serial.printf("Array 128-bit UUID RFC4122: %02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X\n", uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
-    // Serial.printf("String 128-bit UUID RFC4122: %s\n", teensyUUID());
     break;
 
   case 'M': // only for debug
