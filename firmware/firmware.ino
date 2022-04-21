@@ -16,31 +16,33 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.1.1"
-#define FW_DATE "19.4.2022"
+#define FW_VERSION "3.1.4"
+#define FW_DATE "21.4.2022"
 #define FW_AUTHOR "FZU Team"
-#define HW "Teensy 3.6"
+// #define HW "Italy"
+#define TEENSY "Teensy 3.6"
 
 // potentiometer AD5252 I2C address is 0x2C(44)
 // #define POT_ADDRESS 0x2C
-#define POT_ADDRESS 0x2D
+// #define FOTON_POT_ADDRESS 0x2D
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
 // #define POT_VALUE 240 //254
 // reference clock
 // #define REFCLK 125000000
 #define REFQ 12000000
 #define USE_MULTIPLIER
-#ifdef  USE_MULTIPLIER
-  #define  REFCLK (REFQ*6)
-#else  
-  #define REFCLK REFQ
-#endif  
+#ifdef USE_MULTIPLIER
+#define REFCLK (REFQ * 6)
+#else
+#define REFCLK REFQ
+#endif
 
 char SN[7] = "0000000";
+char HW[5] = "None ";
 
 /*************************** VARIABLE DECLARATION ***************************/
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
-int POT_VALUE = 240; //254
+int POT_VALUE = 240; // 254
 String potval_str = String(POT_VALUE);
 // current input frequency
 long freq = 0;
@@ -54,7 +56,7 @@ float temp_FTW; // temporary variable
 // phase comparator AD8302 pinout
 int AD8302_PHASE = 20;
 int AD8302_MAG = 37;
-//int AD83202_REF = 17;
+// int AD83202_REF = 17;
 int AD83202_REF = 34;
 
 // TODO
@@ -63,12 +65,15 @@ double val = 0;
 // Create the MCP9808 temperature sensor object
 Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 // init temperature variable
-//float temperature = 0;
+// float temperature = 0;
 
 // LED pin
 int LED1 = 24;
 int LED2 = 25;
 int LED3 = 26;
+
+// Potentiometer address
+int POT_ADDRESS = 0x2C;
 
 // ADC init variabl
 boolean WAIT = true;
@@ -87,7 +92,6 @@ int ADC_RESOLUTION = 13;
 // init output ad8302 measurement (cast to double)
 double measure_phase = 0;
 double measure_mag = 0;
-
 
 const int DEFAULT_CALIB_FREQ = 10000000;
 const int DEFAULT_RANGE = 65536;
@@ -123,14 +127,14 @@ void SetFreq(unsigned long frequency)
 
   long pointer = 1;
   int pointer2 = 0b10000000;
-  #ifdef  USE_MULTIPLIER
-    int lastByte = 0b10000000;
-  #else  
-    int lastByte = 0b00000000;
-  #endif    
+#ifdef USE_MULTIPLIER
+  int lastByte = 0b10000000;
+#else
+  int lastByte = 0b00000000;
+#endif
   // int lastByte = 0b10000000;
 
-  #define DELAY 1 
+#define DELAY 1
   /* 32 bit dds tuning word frequency instructions */
   for (int i = 0; i < 32; i++)
   {
@@ -149,8 +153,10 @@ void SetFreq(unsigned long frequency)
   /* 8 bit dds phase and x6 multiplier refclock*/
   for (int i = 0; i < 8; i++)
   {
-    if ((lastByte & pointer2) > 0) digitalWrite(DATA, HIGH);
-    else digitalWrite(DATA, LOW);
+    if ((lastByte & pointer2) > 0)
+      digitalWrite(DATA, HIGH);
+    else
+      digitalWrite(DATA, LOW);
     // digitalWrite(DATA, LOW);
     delayMicroseconds(DELAY);
     digitalWrite(WCLK, HIGH);
@@ -165,7 +171,7 @@ void SetFreq(unsigned long frequency)
   digitalWrite(FQ_UD, LOW);
   delayMicroseconds(DELAY);
 
-  //FTW = 0;
+  // FTW = 0;
 }
 
 /*************************** SETUP ***************************/
@@ -173,6 +179,30 @@ void setup()
 {
   // Initialise I2C communication as Master
   Wire.begin();
+
+  // Check HW vendor
+  Wire.beginTransmission(0x2C);
+  if (Wire.endTransmission() == 0)
+  {
+    // Serial.println("Italy");
+    sprintf(HW, "Italy");
+  }
+  else
+  {
+    Wire.beginTransmission(0x2D);
+    if (Wire.endTransmission() == 0)
+    {
+      Serial.println("Foton");
+      sprintf(HW, "Foton");
+      POT_ADDRESS = 0x2D;
+    }
+    else
+    {
+      // Serial.println("ERROR: no potentiometer");
+      sprintf(HW, "Error");
+    }
+  }
+
   // Initialise serial communication, set baud rate = 9600
   Serial.begin(115200);
 
@@ -233,7 +263,8 @@ void setup()
   fw["version"] = FW_VERSION;
   fw["date"] = FW_DATE;
   fw["author"] = FW_AUTHOR;
-  fw["hw"] = "Teensy 3.6";
+  fw["hw"] = HW;
+  fw["teensy"] = "Teensy 3.6";
   sprintf(SN, "%u", teensyUsbSN());
   fw["sn"] = SN;
 
@@ -306,27 +337,28 @@ int legacyRead(String msg)
   return 0;
 }
 
-void swap(int *p,int *q) {
-   int t;
-   
-   t=*p; 
-   *p=*q; 
-   *q=t;
+void swap(int *p, int *q)
+{
+  int t;
+
+  t = *p;
+  *p = *q;
+  *q = t;
 }
 
-void sort(int a[],int n) { 
-   int i,j;
+void sort(int a[], int n)
+{
+  int i, j;
 
-   for(i = 0;i < n-1;i++) {
-      for(j = 0;j < n-i-1;j++) {
-         if(a[j] > a[j+1])
-            swap(&a[j],&a[j+1]);
-      }
-   }
+  for (i = 0; i < n - 1; i++)
+  {
+    for (j = 0; j < n - i - 1; j++)
+    {
+      if (a[j] > a[j + 1])
+        swap(&a[j], &a[j + 1]);
+    }
+  }
 }
-
-
-
 
 double preciseAmpl(long f)
 {
@@ -334,18 +366,16 @@ double preciseAmpl(long f)
 
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US);
-  
+
   long double cumsum = 0;
   for (int i = 0; i < x; i++)
   {
     cumsum += analogRead(AD8302_MAG);
-    //delayMicroseconds(5);
+    // delayMicroseconds(5);
   }
 
   return cumsum / (double)x;
 }
-
-
 
 double precisePhase(long f)
 {
@@ -443,7 +473,7 @@ long gradient1(long left_freq, long right_freq)
   }
 
   // run recursively again with smaller interval and smaller steps
-  return gradient1(max_f -  2* step_size, max_f + 2 * step_size);
+  return gradient1(max_f - 2 * step_size, max_f + 2 * step_size);
 }
 
 long gradient2(long left_freq, long right_freq)
@@ -473,20 +503,20 @@ long gradient2(long left_freq, long right_freq)
   }
 
   // run recursively again with smaller interval and smaller steps
-  return gradient1(max_f -  2* step_size, max_f + 2 * step_size);
+  return gradient1(max_f - 2 * step_size, max_f + 2 * step_size);
 }
 
 long calib_freq = DEFAULT_CALIB_FREQ;
 
 /**
- * FZU: when you know "dirty" resonant frequency, you scan frequencies 
+ * FZU: when you know "dirty" resonant frequency, you scan frequencies
  * around the maximum and from the measured data calculate true resonant
  * frequency using polyfit.
  */
 double sweepFrequency(long rf)
 {
   // prepare variables
-//  String str = String();
+  //  String str = String();
 
   BLA::Matrix<SWEEP_COUNT> b;
 
@@ -497,28 +527,27 @@ double sweepFrequency(long rf)
 
   // sweep around given frequency
   for (int i = 0; i < SWEEP_COUNT; i++, f += SWEEP_STEP)
-  { 
+  {
     // fill matrices and vectors for polyfit
-    // use of preciseAmpl over PreciseAmplMedian is recommeded for 
+    // use of preciseAmpl over PreciseAmplMedian is recommeded for
     b(i) = preciseAmpl(f);
 
-    //cooldown frequency
-    preciseAmpl(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f)); 
+    // cooldown frequency
+    preciseAmpl(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
   }
 
   BLA::Matrix<3> coeffs = A_dagger * b;
-  
+
   quad_res = 0;
   for (int i = 0; i < SWEEP_COUNT; i++)
-  { 
-     res = b(i) - (coeffs(0)*i*i + coeffs(1)*i + coeffs(2));
-     quad_res += res*res;
+  {
+    res = b(i) - (coeffs(0) * i * i + coeffs(1) * i + coeffs(2));
+    quad_res += res * res;
   }
-  quad_res = quad_res/SWEEP_COUNT;
-  
+  quad_res = quad_res / SWEEP_COUNT;
+
   // calculate frequency from indexes
   double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
-
 
   calib_freq = (long)result;
 
@@ -538,28 +567,27 @@ double sweepPhase(long rf)
   preciseAmpl(f);
 
   // sweep around given frequency
-  for (int i = 0; i < SWEEP_COUNT; i++, f += double (SWEEP_STEP/contraction_factor))
-  { 
+  for (int i = 0; i < SWEEP_COUNT; i++, f += double(SWEEP_STEP / contraction_factor))
+  {
     // fill matrices and vectors for polyfit
     b(i) = precisePhase(f);
 
-    //cooldown frequency
-    precisePhase(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f)); 
+    // cooldown frequency
+    precisePhase(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
   }
 
   BLA::Matrix<3> coeffs = A_dagger * b;
-  
+
   quad_res = 0;
   for (int i = 0; i < SWEEP_COUNT; i++)
-  { 
-     res = b(i) - (coeffs(0)*i*i + coeffs(1)*i + coeffs(2));
-     quad_res += res*res;
+  {
+    res = b(i) - (coeffs(0) * i * i + coeffs(1) * i + coeffs(2));
+    quad_res += res * res;
   }
-  quad_res = quad_res/SWEEP_COUNT;
-  
+  quad_res = quad_res / SWEEP_COUNT;
+
   // calculate frequency from indexes
   double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
-
 
   calib_freq = (long)result;
 
@@ -782,6 +810,8 @@ int modernRead(String msg)
   double rf, dis, x;
   float t;
   int w, e, g;
+  float temp = tempsensor.readTempC();
+  byte count;
 
   double measure_phase = 0;
   double measure_mag = 0;
@@ -791,36 +821,39 @@ int modernRead(String msg)
 
   switch (cmd)
   {
-  
+
   case 'v': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    
+
     Serial.println(f);
-    
-    for (e =-200; e<200; e++){
-      g = f+4*e;
+
+    for (e = -200; e < 200; e++)
+    {
+      g = f + 4 * e;
       Serial.println(preciseAmpl(g));
-      //cooldown frequency
-      preciseAmpl(DEFAULT_CALIB_FREQ-8000 + (DEFAULT_CALIB_FREQ-f));
-      }
-    
-  break;
-  
+      // cooldown frequency
+      preciseAmpl(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
+    }
+
+    break;
+
   case 'w': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    //f = 10001241;
+    // f = 10001241;
     Serial.println(f);
     delayMicroseconds(100);
-    for (e =-200; e<200; e++){
-      SetFreq(f+4*e);
+    for (e = -200; e < 200; e++)
+    {
+      SetFreq(f + 4 * e);
       delayMicroseconds(WAIT_DELAY_US);
-        for (w = 0; w< 100; w++){
+      for (w = 0; w < 100; w++)
+      {
         Serial.println(analogRead(AD8302_MAG));
-          delayMicroseconds(100);
+        delayMicroseconds(100);
       }
     }
-  break;
-  
+    break;
+
   case 'c': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
@@ -832,16 +865,16 @@ int modernRead(String msg)
     break;
 
   case 'j': // only frequency measurement for Jakub 'case' algorithm
-    //rf = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    // rf = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     x = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    
+
     rf = sweepFrequency(x);
     Serial.println(rf);
-    //dis = dissipation(rf);
-    //Serial.println(dis, 9);
-    //tempsensor.shutdown_wake(0);
-    //t = tempsensor.readTempC();
-    //Serial.println(t);
+    // dis = dissipation(rf);
+    // Serial.println(dis, 9);
+    // tempsensor.shutdown_wake(0);
+    // t = tempsensor.readTempC();
+    // Serial.println(t);
     break;
 
   case 'm': // main measurement
@@ -866,7 +899,7 @@ int modernRead(String msg)
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
     data["temperature"] = t;
-    serializeJsonPretty(data,Serial);
+    serializeJsonPretty(data, Serial);
     Serial.println();
     break;
 
@@ -897,14 +930,14 @@ int modernRead(String msg)
       magValues.add(measure_mag);
       phaseValues.add(measure_phase);
     }
-    serializeJsonPretty(data,Serial);
+    serializeJsonPretty(data, Serial);
     Serial.println();
     magValues.clear();
     phaseValues.clear();
     break;
 
   case 'i':
-    serializeJsonPretty(fw,Serial);
+    serializeJsonPretty(fw, Serial);
     Serial.println();
     break;
 
@@ -912,21 +945,103 @@ int modernRead(String msg)
     Serial.printf("%u", teensyUsbSN());
     break;
 
-  case 'k':
+  case '1':
     digitalWrite(LED1, HIGH);
-    float temp = tempsensor.readTempC();
-    Serial.print("Teplota: ");
+    temp = tempsensor.readTempC();
+    Serial.print("10 MHz ... Teplota: ");
     Serial.print(temp);
     Serial.println(" °C");
-    SetFreq(10000000); //long frequency
-    
+    SetFreq(10000000); // long frequency
+
     delay(500);
     digitalWrite(LED1, LOW);
     delay(500);
     break;
 
-  case 't':
-    Serial.println("test");
+  case '2':
+    digitalWrite(LED2, HIGH);
+    // Serial.println("Jsem tady .... ");
+    temp = tempsensor.readTempC();
+    Serial.print("9 MHz ... Teplota: ");
+    Serial.print(temp);
+    Serial.println(" °C");
+    SetFreq(9000000); // long frequency
+
+    delay(500);
+    digitalWrite(LED2, LOW);
+    delay(500);
+    break;
+
+  case '3':
+    digitalWrite(LED3, HIGH);
+    // Serial.println("Jsem tady .... ");
+    temp = tempsensor.readTempC();
+    Serial.print("11 MHz ... Teplota: ");
+    Serial.print(temp);
+    Serial.println(" °C");
+    SetFreq(11000000); // long frequency
+
+    delay(500);
+    digitalWrite(LED3, LOW);
+    delay(500);
+    break;
+
+  case 'e':
+    digitalWrite(LED3, HIGH);
+
+    Serial.println("I2C scanner. Scanning ...");
+    count = 0;
+
+    Wire.begin();
+    for (byte i = 8; i < 120; i++)
+    {
+      Wire.beginTransmission(i);
+      if (Wire.endTransmission() == 0)
+      {
+        Serial.print("Found address: ");
+        Serial.print(i, DEC);
+        Serial.print(" (0x");
+        Serial.print(i, HEX);
+        Serial.println(")");
+        count++;
+        delay(1);
+      } // end of good response
+    }   // end of for loop
+    digitalWrite(LED2, HIGH);
+    Serial.println("Done.");
+    Serial.print("Found ");
+    Serial.print(count, DEC);
+    Serial.println(" device(s).");
+
+    Serial.println(" ...");
+    delay(500);
+    digitalWrite(LED3, LOW);
+    digitalWrite(LED2, LOW);
+    delay(500);
+    break;
+
+  case 'f':
+    digitalWrite(LED3, HIGH);
+    Wire.beginTransmission(0x2C);
+    if (Wire.endTransmission() == 0)
+    {
+      Serial.println("Italy");
+    }
+    else
+    {
+      Wire.beginTransmission(0x2D);
+      if (Wire.endTransmission() == 0)
+      {
+        Serial.println("Foton");
+      }
+      else
+      {
+        Serial.println("ERROR: no potentiometer");
+      }
+    }
+    delay(500);
+    digitalWrite(LED3, LOW);
+    delay(500);
     break;
 
   case 'M': // only for debug
@@ -958,7 +1073,7 @@ int modernRead(String msg)
     Serial.println(t);
     Serial.println("s");
     break;
-    
+
   case 'R':
     potval_str = msg.substring(1);
     if (potval_str.toInt() >= 0 && potval_str.toInt() < 256)
@@ -970,8 +1085,17 @@ int modernRead(String msg)
       Wire.endTransmission();
     }
     break;
-    
+
+  case 't':
+    digitalWrite(LED3, HIGH);
+    Serial.println("Test ...");
+    delay(500);
+    digitalWrite(LED3, LOW);
+    delay(500);
+    break;
+
   default:
+    Serial.println("Konec ... ");
     return 1;
   }
 
@@ -998,7 +1122,7 @@ void loop()
 
   int retVal;
   if (useModern)
-    {
+  {
     retVal = modernRead(msg);
   }
   else
