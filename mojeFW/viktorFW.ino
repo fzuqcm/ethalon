@@ -17,8 +17,8 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.1.6"
-#define FW_DATE "25.5.2022"
+#define FW_VERSION "3.1.4"
+#define FW_DATE "21.4.2022"
 #define FW_AUTHOR "FZU Team"
 // #define HW "Italy"
 #define TEENSY "Teensy 3.6"
@@ -29,17 +29,14 @@
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
 // #define POT_VALUE 240 //254
 // reference clock
-#define REFCLK 125000000
+// #define REFCLK 125000000
 #define REFQ 12000000
-// #define USE_MULTIPLIER
-// #ifdef USE_MULTIPLIER
-// #define REFCLK (REFQ * 6)
-// #else
-// #define REFCLK REFQ
-// #endif
-
-unsigned long refclk = REFCLK; // Italy is default
-int lastByte = 0b00000000;
+#define USE_MULTIPLIER
+#ifdef USE_MULTIPLIER
+#define REFCLK (REFQ * 6)
+#else
+#define REFCLK REFQ
+#endif
 
 char SN[7] = "0000000";
 char HW[5] = "None ";
@@ -77,7 +74,7 @@ int LED2 = 25;
 int LED3 = 26;
 
 // Potentiometer address
-int POT_ADDRESS = 0x2C;  // Italy is default
+int POT_ADDRESS = 0x2C;
 
 // ADC init variabl
 boolean WAIT = true;
@@ -108,13 +105,9 @@ const int SWEEP_REPEAT = 16;
 const int DIS_STEP = 256;
 const int DIS_RANGE = 16384;
 const int DIS_COUNT = DIS_RANGE / DIS_STEP + 1;
-
-BLA::Matrix<3, SWEEP_COUNT> A_dagger;
-BLA::Matrix<SWEEP_COUNT, 3> A;
-
-const int POLY_DEGREE = 5;
-BLA::Matrix<POLY_DEGREE, SWEEP_COUNT> B_dagger;
-BLA::Matrix<SWEEP_COUNT, POLY_DEGREE> B;
+const POLY_DEGREE = 5;
+BLA::Matrix<POLY_DEGREE, SWEEP_COUNT> A_dagger;
+BLA::Matrix<SWEEP_COUNT, POLY_DEGREE> A;
 double quad_res;
 double res;
 
@@ -130,16 +123,16 @@ uint64_t dseq = 0;
 void SetFreq(unsigned long frequency)
 {
   // set to 125 MHz internal clock
-  temp_FTW = (frequency * pow(2, 32)) / refclk;
+  temp_FTW = (frequency * pow(2, 32)) / REFCLK;
   FTW = (unsigned long)temp_FTW;
 
   long pointer = 1;
   int pointer2 = 0b10000000;
-// #ifdef USE_MULTIPLIER
-//   int lastByte = 0b10000000;
-// #else
-//   int lastByte = 0b00000000;
-// #endif
+#ifdef USE_MULTIPLIER
+  int lastByte = 0b10000000;
+#else
+  int lastByte = 0b00000000;
+#endif
   // int lastByte = 0b10000000;
 
 #define DELAY 1
@@ -165,6 +158,7 @@ void SetFreq(unsigned long frequency)
       digitalWrite(DATA, HIGH);
     else
       digitalWrite(DATA, LOW);
+    // digitalWrite(DATA, LOW);
     delayMicroseconds(DELAY);
     digitalWrite(WCLK, HIGH);
     delayMicroseconds(DELAY);
@@ -202,9 +196,6 @@ void setup()
       Serial.println("Foton");
       sprintf(HW, "Foton");
       POT_ADDRESS = 0x2D;
-      refclk = REFQ * 6;
-      lastByte = 0b10000000;
-      // multi = 1;
     }
     else
     {
@@ -259,30 +250,20 @@ void setup()
   digitalWrite(LED1, LOW);
   digitalWrite(LED2, LOW);
   digitalWrite(LED3, LOW);
-  
-  for (int i = 0; i < SWEEP_COUNT; i++)
-  {
-    A(i, 0) = i * i;
-    A(i, 1) = i;
-    A(i, 2) = 1;
-  }
-
- A_dagger = ((~A) * A).Inverse() * (~A);
-
   float x;
 
   for (int i = 0; i < SWEEP_COUNT; i++)
   {
     x = i/SWEEP_COUNT;
-    B(i, 0) = 1;
-    B(i, 1) = x;
-    B(i, 2) = x*x;
-    B(i, 3) = x*x*x;
-    B(i, 4) = x*x*x*x;
-    B(i, 5) = x*x*x*x*x;
+    A(i, 0) = 1;
+    A(i, 1) = x;
+    A(i, 2) = x*x;
+    A(i, 3) = x*x*x;
+    A(i, 4) = x*x*x*x;
+    A(i, 5) = x*x*x*x*x;
   }
 
-  B_dagger = ((~B) * B).Inverse() * (~B);
+  A_dagger = ((~A) * A).Inverse() * (~A);
 
   fw["name"] = FW_NAME;
   fw["version"] = FW_VERSION;
@@ -546,7 +527,6 @@ long calib_freq = DEFAULT_CALIB_FREQ;
  * around the maximum and from the measured data calculate true resonant
  * frequency using polyfit.
  */
-
 double sweepFrequency(long rf)
 {
   // prepare variables
@@ -572,59 +552,19 @@ double sweepFrequency(long rf)
 
   BLA::Matrix<3> coeffs = A_dagger * b;
 
-  quad_res = 0;
-  for (int i = 0; i < SWEEP_COUNT; i++)
-  {
-    res = b(i) - (coeffs(0) * i * i + coeffs(1) * i + coeffs(2));
-    quad_res += res * res;
-  }
-  quad_res = quad_res / SWEEP_COUNT;
-
-  // calculate frequency from indexes
-  double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
-
-  calib_freq = (long)result;
-
-  return result;
-}
-
-double sweepFrequency5(long rf)
-{
-  // prepare variables
-  //  String str = String();
-
-  BLA::Matrix<SWEEP_COUNT> b;
-
-  long f = rf - (SWEEP_RANGE / 2);
-
-  // stabilize input, not measures anything
-  preciseAmpl(f);
-
-  // sweep around given frequency
-  for (int i = 0; i < SWEEP_COUNT; i++, f += SWEEP_STEP)
-  {
-    // fill matrices and vectors for polyfit
-    // use of preciseAmpl over PreciseAmplMedian is recommeded for
-    b(i) = preciseAmpl(f);
-
-    // cooldown frequency
-    preciseAmpl(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
-  }
-
-  BLA::Matrix<POLY_DEGREE> coeffs = B_dagger * b;
   
   // calculate frequency from indexes
   //double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
   long max = 0;
   int max_i = 0;
   int x;
-  double poly_val, polyval;
+  double poly_val;
   int j;
-  for (int i = 0; i<SWEEP_COUNT; i++){
+  for (i = 0; i<SWEEP_COUNT; i++){
       x = i/SWEEP_COUNT;
-      poly_val = 0;
-      for(int j = 0; j<= POLY_DEGREE; j++){
-          polyval += coeffs(j)*power(x, j);
+      poly_val = 0
+      for(j = 0; j<= POLY_DEGREE; j++){
+          polyval += coeffs(j)*power(x, k)
       }
       if(polyval > max){
         max = polyval;
@@ -632,7 +572,7 @@ double sweepFrequency5(long rf)
       }
   }
 
-  double result = rf - (SWEEP_RANGE / 2) + max_i*(double)SWEEP_STEP;
+  double result = rf - (SWEEP_RANGE / 2) + i*(double)SWEEP_STEP;
 
   calib_freq = (long)result;
 
@@ -686,16 +626,21 @@ double dissipation(long rf)
 {
   double dis = -1.0;
 
+  Serial.println(dis);
+  Serial.println(0);
   // stabilize input
   SetFreq(rf);
   delayMicroseconds(WAIT_DELAY_US * 3);
   analogRead(AD8302_MAG);
+  Serial.println(rf);
 
   // second stabilization
   SetFreq(rf);
+  Serial.println(1);
   if (WAIT)
     delayMicroseconds(WAIT_DELAY_US);
 
+  Serial.println(2);
   long fl = rf;
   long fr = rf;
   int la = analogRead(AD8302_MAG);
@@ -703,9 +648,16 @@ double dissipation(long rf)
   double boundary = (double)la * 0.707;
   int step = 2048;
 
+  Serial.println(3);
+
   // move in steps towards 70.7% boundary for dissipation calc to the left
   while (step > 3 && la > 1000)
   {
+    Serial.println(fl);
+    Serial.println(step);
+    Serial.println(la);
+    Serial.println(boundary);
+    Serial.println(-1);
     SetFreq(fl - step);
     if (WAIT)
       delayMicroseconds(WAIT_DELAY_US);
@@ -721,6 +673,7 @@ double dissipation(long rf)
     }
   }
 
+  Serial.println(4);
   // move in steps towards 70.7% boundary for dissipation calc to the right
   step = 2048;
   while (step > 3 && ra > 1000)
@@ -740,13 +693,17 @@ double dissipation(long rf)
     }
   }
 
+  Serial.println(5);
   // calculate dissipation (maybe change to quality factor)
   dis = (double)(fr - fl) / (double)rf;
+  Serial.println(6);
 
   if (dis * dis > 1)
   {
     dis = -1;
   }
+  Serial.println(dis);
+
   return dis;
 }
 
@@ -890,6 +847,129 @@ int modernRead(String msg)
   switch (cmd)
   {
 
+  case 'v': // Viktor's debug
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+
+    Serial.println(f);
+
+    for (e = -200; e < 200; e++)
+    {
+      g = f + 4 * e;
+      Serial.println(preciseAmpl(g));
+      // cooldown frequency
+      preciseAmpl(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
+    }
+
+    break;
+
+  case 'w': // Viktor's debug
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    // f = 10001241;
+    Serial.println(f);
+    delayMicroseconds(100);
+    for (e = -200; e < 200; e++)
+    {
+      SetFreq(f + 4 * e);
+      delayMicroseconds(WAIT_DELAY_US);
+      for (w = 0; w < 100; w++)
+      {
+        Serial.println(analogRead(AD8302_MAG));
+        delayMicroseconds(100);
+      }
+    }
+    break;
+
+  case 'c': // Viktor's debug
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    delay(150);
+    Serial.println(rf);
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    Serial.println(t);
+    break;
+
+  case 'j': // only frequency measurement for Jakub 'case' algorithm
+    // rf = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    x = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+
+    rf = sweepFrequency(x);
+    Serial.println(rf);
+    // dis = dissipation(rf);
+    // Serial.println(dis, 9);
+    // tempsensor.shutdown_wake(0);
+    // t = tempsensor.readTempC();
+    // Serial.println(t);
+    break;
+
+  case 'm': // main measurement
+    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    Serial.println(rf);
+    dis = dissipation(rf);
+    Serial.println(dis, 9);
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    Serial.println(t);
+    break;
+
+  case 'n': // main measurement to json
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    data["id"] = ++dseq;
+    data["frequency"] = rf;
+    dis = dissipation(rf);
+    data["dissipation"] = dis;
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    data["temperature"] = t;
+    serializeJsonPretty(data, Serial);
+    Serial.println();
+    break;
+
+  case 'r': // main measurement with resonance curves to json
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    data["id"] = ++dseq;
+    data["frequency"] = rf;
+    dis = dissipation(rf);
+    data["dissipation"] = dis;
+    tempsensor.shutdown_wake(0);
+    t = tempsensor.readTempC();
+    data["temperature"] = t;
+    for (long f = rf - rf_hb; f <= rf + rf_hb; f += rf_step)
+    {
+      SetFreq(f);
+      if (WAIT)
+        delayMicroseconds(WAIT_DELAY_US);
+      int app_phase = 0;
+      int app_mag = 0;
+      for (int i = 0; i < AVERAGE_SAMPLE; i++)
+      {
+        app_phase += analogRead(AD8302_PHASE);
+        app_mag += analogRead(AD8302_MAG);
+      }
+      measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
+      measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
+      magValues.add(measure_mag);
+      phaseValues.add(measure_phase);
+    }
+    serializeJsonPretty(data, Serial);
+    Serial.println();
+    magValues.clear();
+    phaseValues.clear();
+    break;
+
+  case 'i':
+    serializeJsonPretty(fw, Serial);
+    Serial.println();
+    break;
+
+  case 's':
+    Serial.printf("%u", teensyUsbSN());
+    break;
+
   case '1':
     digitalWrite(LED1, HIGH);
     temp = tempsensor.readTempC();
@@ -929,33 +1009,6 @@ int modernRead(String msg)
     delay(500);
     digitalWrite(LED3, LOW);
     delay(500);
-    break;
-
-  case 'c': // Viktor's debug
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency(f);
-    delay(150);
-    Serial.println(rf);
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    Serial.println(t);
-    break;
-
-  case 'D': // only for debug
-    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    // rf = sweepFrequency(f);
-    Serial.println(calib_freq - DIRTY_RANGE);
-    Serial.println(calib_freq + DIRTY_RANGE);
-    Serial.println(f);
-    rf = sweepDebug(f);
-    Serial.println(rf);
-    Serial.println(WAIT_DELAY_US);
-    Serial.println(AVERAGE_SAMPLE);
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    Serial.println(t);
-    Serial.println("s");
     break;
 
   case 'e':
@@ -1016,35 +1069,6 @@ int modernRead(String msg)
     delay(500);
     break;
 
-  case 'i':
-    serializeJsonPretty(fw, Serial);
-    Serial.println();
-    break;
-
-  case 'j': // only frequency measurement for Jakub 'case' algorithm
-    x = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency(x);
-    Serial.println(rf);
-    break;
-
-  case 'k': // only frequency measurement for Jakub 'case' algorithm
-    x = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency5(x);
-    Serial.println(rf);
-    break;
-
-  case 'm': // main measurement
-    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency(f);
-    Serial.println(rf);
-    dis = dissipation(rf);
-    Serial.println(dis, 9);
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    Serial.println(t);
-    break;
-
   case 'M': // only for debug
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
@@ -1058,51 +1082,21 @@ int modernRead(String msg)
     Serial.println("s");
     break;
 
-  case 'n': // main measurement to json
+  case 'D': // only for debug
+    // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency(f);
-    data["id"] = ++dseq;
-    data["frequency"] = rf;
-    dis = dissipation(rf);
-    data["dissipation"] = dis;
+    // rf = sweepFrequency(f);
+    Serial.println(calib_freq - DIRTY_RANGE);
+    Serial.println(calib_freq + DIRTY_RANGE);
+    Serial.println(f);
+    rf = sweepDebug(f);
+    Serial.println(rf);
+    Serial.println(WAIT_DELAY_US);
+    Serial.println(AVERAGE_SAMPLE);
     tempsensor.shutdown_wake(0);
     t = tempsensor.readTempC();
-    data["temperature"] = t;
-    serializeJsonPretty(data, Serial);
-    Serial.println();
-    break;
-
-  case 'r': // main measurement with resonance curves to json
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    rf = sweepFrequency(f);
-    data["id"] = ++dseq;
-    data["frequency"] = rf;
-    dis = dissipation(rf);
-    data["dissipation"] = dis;
-    tempsensor.shutdown_wake(0);
-    t = tempsensor.readTempC();
-    data["temperature"] = t;
-    for (long f = rf - rf_hb; f <= rf + rf_hb; f += rf_step)
-    {
-      SetFreq(f);
-      if (WAIT)
-        delayMicroseconds(WAIT_DELAY_US);
-      int app_phase = 0;
-      int app_mag = 0;
-      for (int i = 0; i < AVERAGE_SAMPLE; i++)
-      {
-        app_phase += analogRead(AD8302_PHASE);
-        app_mag += analogRead(AD8302_MAG);
-      }
-      measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
-      measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
-      magValues.add(measure_mag);
-      phaseValues.add(measure_phase);
-    }
-    serializeJsonPretty(data, Serial);
-    Serial.println();
-    magValues.clear();
-    phaseValues.clear();
+    Serial.println(t);
+    Serial.println("s");
     break;
 
   case 'R':
@@ -1117,48 +1111,12 @@ int modernRead(String msg)
     }
     break;
 
-  case 's':
-    Serial.printf("%u", teensyUsbSN());
-    break;
-
   case 't':
     digitalWrite(LED3, HIGH);
     Serial.println("Test ...");
     delay(500);
     digitalWrite(LED3, LOW);
     delay(500);
-    break;
-
-  case 'v': // Viktor's debug
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-
-    Serial.println(f);
-
-    for (e = -200; e < 200; e++)
-    {
-      g = f + 4 * e;
-      Serial.println(preciseAmpl(g));
-      // cooldown frequency
-      preciseAmpl(DEFAULT_CALIB_FREQ - 8000 + (DEFAULT_CALIB_FREQ - f));
-    }
-
-    break;
-
-  case 'w': // Viktor's debug
-    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-    // f = 10001241;
-    Serial.println(f);
-    delayMicroseconds(100);
-    for (e = -200; e < 200; e++)
-    {
-      SetFreq(f + 4 * e);
-      delayMicroseconds(WAIT_DELAY_US);
-      for (w = 0; w < 100; w++)
-      {
-        Serial.println(analogRead(AD8302_MAG));
-        delayMicroseconds(100);
-      }
-    }
     break;
 
   default:
