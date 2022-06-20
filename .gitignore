@@ -5,7 +5,7 @@ node_modules
 __pycache__
 *.db
 *.sqlite
-
+/yudin/2*
 /web/.svelte
 /web/build
 /web/functions
