@@ -154,9 +154,9 @@ class Ui_MainWindow(object):
         self.GraphA = PlotWidget(self.centralwidget)
         self.GraphA.setObjectName("GraphA")
         self.verticalLayout.addWidget(self.GraphA)
-        self.GraphB = PlotWidget(self.centralwidget)
-        self.GraphB.setObjectName("GraphB")
-        self.verticalLayout.addWidget(self.GraphB)
+        # self.GraphB = PlotWidget(self.centralwidget)
+        # self.GraphB.setObjectName("GraphB")
+        # self.verticalLayout.addWidget(self.GraphB)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)

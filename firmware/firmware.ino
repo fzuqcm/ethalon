@@ -17,8 +17,8 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.1.6"
-#define FW_DATE "25.5.2022"
+#define FW_VERSION "3.1.8"
+#define FW_DATE "2.8.2022"
 #define FW_AUTHOR "FZU Team"
 // #define HW "Italy"
 #define TEENSY "Teensy 3.6"
@@ -42,7 +42,7 @@ unsigned long refclk = REFCLK; // Italy is default
 int lastByte = 0b00000000;
 
 char SN[7] = "0000000";
-char HW[5] = "None ";
+char HW[12] = "None        ";
 
 /*************************** VARIABLE DECLARATION ***************************/
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
@@ -192,15 +192,15 @@ void setup()
   if (Wire.endTransmission() == 0)
   {
     // Serial.println("Italy");
-    sprintf(HW, "Italy");
+    sprintf(HW, "Italy 125MHz");
   }
   else
   {
     Wire.beginTransmission(0x2D);
     if (Wire.endTransmission() == 0)
     {
-      Serial.println("Foton");
-      sprintf(HW, "Foton");
+      // Serial.println("Foton");
+      sprintf(HW, "Foton 12Mhz ");
       POT_ADDRESS = 0x2D;
       refclk = REFQ * 6;
       lastByte = 0b10000000;
@@ -209,7 +209,10 @@ void setup()
     else
     {
       // Serial.println("ERROR: no potentiometer");
-      sprintf(HW, "Error");
+      sprintf(HW, "Foton 20MHz ");
+      POT_ADDRESS = 0x00;
+      refclk = 20000000 * 6;
+      lastByte = 0b10000000;
     }
   }
 
@@ -217,14 +220,16 @@ void setup()
   Serial.begin(115200);
 
   // set potentiometer value
-  // Start I2C transmission
-  Wire.beginTransmission(POT_ADDRESS);
-  // Send instruction for POT channel-0
-  Wire.write(0x01);
-  // Input resistance value, 0x80(128)
-  Wire.write(POT_VALUE);
-  // Stop I2C transmission
-  Wire.endTransmission();
+  if (POT_ADDRESS) {
+    // Start I2C transmission
+    Wire.beginTransmission(POT_ADDRESS);
+    // Send instruction for POT channel-0
+    Wire.write(0x01);
+    // Input resistance value, 0x80(128)
+    Wire.write(POT_VALUE);
+    // Stop I2C transmission
+    Wire.endTransmission();
+  }
 
   // AD9851 set pin mode
   pinMode(WCLK, OUTPUT);
@@ -290,7 +295,7 @@ void setup()
   fw["author"] = FW_AUTHOR;
   fw["hw"] = HW;
   fw["teensy"] = "Teensy 3.6";
-  sprintf(SN, "%u", teensyUsbSN());
+  sprintf(SN, "%u", (unsigned int)teensyUsbSN());
   fw["sn"] = SN;
 
   while (!Serial)
@@ -762,7 +767,7 @@ double sweepDebug(long rf)
 
   long f = rf - (DIS_RANGE / 2);
   double cumsum = 0;
-  double max = 0;
+  double max = 0, left = 0, right = 0;
   double maxf = -1.0;
   double dlf = -1.0;
   double drf = -1.0;
@@ -791,6 +796,9 @@ double sweepDebug(long rf)
     }
 
     d(i) = cumsum / (double)SWEEP_REPEAT;
+
+    if (i == 0) left = d(i);
+    if (i == DIS_COUNT - 1) right = d(i);
     if (d(i) > max)
     {
       max = d(i);
@@ -799,22 +807,27 @@ double sweepDebug(long rf)
     }
   }
 
-  f = rf - (DIS_RANGE / 2);
-  for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
-  {
-    if (ldis < 0 && d(i) > 0.707 * max)
+  if ((left / max < 0.7) && (right / max < 0.7)) {
+    f = rf - (DIS_RANGE / 2);
+    for (int i = 0; i < DIS_COUNT; i++, f += DIS_STEP)
     {
-      ldis = i;
-      dlf = (double)f;
+      if (ldis < 0 && d(i) > 0.707 * max)
+      {
+        ldis = i;
+        dlf = (double)f;
+      }
+      if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
+      {
+        rdis = i - 1;
+        drf = (double)f;
+        break;
+      }
     }
-    if (ldis > 0 && rdis < 0 && d(i) < 0.707 * max)
-    {
-      rdis = i - 1;
-      drf = (double)f;
-      break;
-    }
+    dis = maxf / (drf - dlf);
   }
-  dis = maxf / (drf - dlf);
+  else {
+    dis = -0.42;
+  }
   Serial.println(dis);
 
   f = rf - (SWEEP_RANGE / 2);
@@ -873,6 +886,7 @@ int modernRead(String msg)
 {
   // long param = msg.substring(2).toInt();
   char cmd = msg.charAt(0);
+  unsigned long difTime, absTime, relTime;
 
   long f;
   double rf, dis, x;
@@ -886,6 +900,11 @@ int modernRead(String msg)
   int rf_cnt = 128;
   int rf_step = 40;
   long rf_hb = rf_cnt * rf_step / 2;
+
+  int f0 = 10002600;
+  int f1 = 10003200;
+  int f2 = 200;
+  int mm = 0;
 
   switch (cmd)
   {
@@ -956,6 +975,82 @@ int modernRead(String msg)
     t = tempsensor.readTempC();
     Serial.println(t);
     Serial.println("s");
+    break;
+
+  case 'd': // time response for debug foton's electronics
+    // int d0 = msg.indexOf(':');
+    // int d1 = msg.indexOf(':', d0 + 1);
+
+    // if (d0 == -1 || d1 == -1 || d0 == d1)
+    // {
+    //   Serial.println("arg error");
+    //   break;
+    // }
+
+    // int f0 = 10002600; //msg.substring(0, d0).toInt();
+    // int f1 = 10003200; //msg.substring(d0 + 1, d1).toInt();
+    // int f2 = 200; //msg.substring(d1 + 1).toInt();
+
+    // if (!f0 || !f1 || !f2)
+    // {
+    //   Serial.println("arg zero error");
+    //   break;
+    // }
+    // int mm = 0;
+
+    SetFreq(f0);
+    delay(1000);
+    difTime = micros();
+    for (int i = 0; i < f2; i++) {
+      mm = analogRead(AD8302_MAG);
+      absTime = micros();
+      relTime = absTime - difTime;
+      Serial.print(i);
+      Serial.print(";");
+      Serial.print(relTime);
+      Serial.print(";");
+      Serial.print(mm);
+      Serial.println();
+    }
+
+    SetFreq(f1);
+    for (int i = 0; i < f2; i++) {
+      mm = analogRead(AD8302_MAG);
+      absTime = micros();
+      relTime = absTime - difTime;
+      Serial.print(i);
+      Serial.print(";");
+      Serial.print(relTime);
+      Serial.print(";");
+      Serial.print(mm);
+      Serial.println();
+    }
+
+    SetFreq(f0);
+    for (int i = 0; i < f2; i++) {
+      mm = analogRead(AD8302_MAG);
+      absTime = micros();
+      relTime = absTime - difTime;
+      Serial.print(i);
+      Serial.print(";");
+      Serial.print(relTime);
+      Serial.print(";");
+      Serial.print(mm);
+      Serial.println();
+    }
+
+    SetFreq(f1);
+    for (int i = 0; i < f2; i++) {
+      mm = analogRead(AD8302_MAG);
+      absTime = micros();
+      relTime = absTime - difTime;
+      Serial.print(i);
+      Serial.print(";");
+      Serial.print(relTime);
+      Serial.print(";");
+      Serial.print(mm);
+      Serial.println();
+    }
     break;
 
   case 'e':
@@ -1107,7 +1202,7 @@ int modernRead(String msg)
 
   case 'R':
     potval_str = msg.substring(1);
-    if (potval_str.toInt() >= 0 && potval_str.toInt() < 256)
+    if (POT_ADDRESS && potval_str.toInt() >= 0 && potval_str.toInt() < 256)
     {
       POT_VALUE = potval_str.toInt();
       Wire.beginTransmission(POT_ADDRESS);
