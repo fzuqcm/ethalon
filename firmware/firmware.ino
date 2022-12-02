@@ -17,8 +17,8 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.1.8"
-#define FW_DATE "2.8.2022"
+#define FW_VERSION "3.1.9"
+#define FW_DATE "24.8.2022"
 #define FW_AUTHOR "FZU Team"
 // #define HW "Italy"
 #define TEENSY "Teensy 3.6"
@@ -43,6 +43,8 @@ int lastByte = 0b00000000;
 
 char SN[7] = "0000000";
 char HW[12] = "None        ";
+
+unsigned long sf = 10000000; // default frequency
 
 /*************************** VARIABLE DECLARATION ***************************/
 // potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
@@ -81,6 +83,7 @@ int POT_ADDRESS = 0x2C;  // Italy is default
 
 // ADC init variabl
 boolean WAIT = true;
+boolean WAIT_LONG = false;
 // ADC waiting delay microseconds
 int WAIT_DELAY_US = 300;
 // int WAIT_DELAY_US = 100;
@@ -308,6 +311,28 @@ void setup()
 /**
  * FZU: original Italien code, but optimized for better reading
  */
+void legacyAmPh(void) {
+  if (WAIT) delayMicroseconds(WAIT_DELAY_US);
+  if (WAIT_LONG) delay(10);
+
+  int app_phase = 0;
+  int app_mag = 0;
+
+  for (int i = 0; i < AVERAGE_SAMPLE; i++)
+  {
+    app_phase += analogRead(AD8302_PHASE);
+    app_mag += analogRead(AD8302_MAG);
+  }
+
+  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
+  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
+
+  Serial.print(measure_mag);
+  Serial.print(";");
+  Serial.print(measure_phase);
+  Serial.println();
+}
+
 int legacyRead(String msg)
 {
   int d0 = msg.indexOf(';');
@@ -331,28 +356,10 @@ int legacyRead(String msg)
   double measure_phase = 0;
   double measure_mag = 0;
 
-  for (long f = f0; f <= f1; f += f2)
+  for (unsigned long f = f0; f <= f1; f += f2)
   {
     SetFreq(f);
-    if (WAIT)
-      delayMicroseconds(WAIT_DELAY_US);
-
-    int app_phase = 0;
-    int app_mag = 0;
-
-    for (int i = 0; i < AVERAGE_SAMPLE; i++)
-    {
-      app_phase += analogRead(AD8302_PHASE);
-      app_mag += analogRead(AD8302_MAG);
-    }
-
-    measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
-    measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
-
-    Serial.print(measure_mag);
-    Serial.print(";");
-    Serial.print(measure_phase);
-    Serial.println();
+    legacyAmPh();
   }
 
   tempsensor.shutdown_wake(0);
@@ -398,7 +405,7 @@ void sort(int a[], int n)
   }
 }
 
-double preciseAmpl(long f)
+double preciseAmpl(unsigned long f)
 {
   int x = AVERAGE_COUNT;
 
@@ -687,7 +694,7 @@ double sweepPhase(long rf)
 /**
  * FZU: calculate dissipation from given resonant frequency
  */
-double dissipation(long rf)
+double dissipation(unsigned long rf)
 {
   double dis = -1.0;
 
@@ -701,8 +708,8 @@ double dissipation(long rf)
   if (WAIT)
     delayMicroseconds(WAIT_DELAY_US);
 
-  long fl = rf;
-  long fr = rf;
+  unsigned long fl = rf;
+  unsigned long fr = rf;
   int la = analogRead(AD8302_MAG);
   int ra = la;
   double boundary = (double)la * 0.707;
@@ -758,14 +765,14 @@ double dissipation(long rf)
 /**
  * FZU: only for debugging purposes, don't really look at it.
  */
-double sweepDebug(long rf)
+double sweepDebug(unsigned long rf)
 {
   String str = String();
   BLA::Matrix<SWEEP_COUNT, 3> A;
   BLA::Matrix<SWEEP_COUNT> b;
   BLA::Matrix<DIS_COUNT> d;
 
-  long f = rf - (DIS_RANGE / 2);
+  unsigned long f = rf - (DIS_RANGE / 2);
   double cumsum = 0;
   double max = 0, left = 0, right = 0;
   double maxf = -1.0;
@@ -888,7 +895,7 @@ int modernRead(String msg)
   char cmd = msg.charAt(0);
   unsigned long difTime, absTime, relTime;
 
-  long f;
+  unsigned long f;
   double rf, dis, x;
   float t;
   int w, e, g;
@@ -901,8 +908,8 @@ int modernRead(String msg)
   int rf_step = 40;
   long rf_hb = rf_cnt * rf_step / 2;
 
-  int f0 = 10002600;
-  int f1 = 10003200;
+  unsigned long f0 = 10002600;
+  unsigned long f1 = 10003200;
   int f2 = 200;
   int mm = 0;
 
@@ -911,11 +918,13 @@ int modernRead(String msg)
 
   case '1':
     digitalWrite(LED1, HIGH);
+    sf = 9000000;
     temp = tempsensor.readTempC();
-    Serial.print("10 MHz ... Teplota: ");
+    Serial.print(sf);
+    Serial.print(" Hz ... Teplota: ");
     Serial.print(temp);
     Serial.println(" °C");
-    SetFreq(10000000); // long frequency
+    SetFreq(sf); // long frequency
 
     delay(500);
     digitalWrite(LED1, LOW);
@@ -924,12 +933,14 @@ int modernRead(String msg)
 
   case '2':
     digitalWrite(LED2, HIGH);
+    sf = 10000000;
     // Serial.println("Jsem tady .... ");
     temp = tempsensor.readTempC();
-    Serial.print("9 MHz ... Teplota: ");
+    Serial.print(sf);
+    Serial.print(" Hz ... Teplota: ");
     Serial.print(temp);
     Serial.println(" °C");
-    SetFreq(9000000); // long frequency
+    SetFreq(sf); // long frequency
 
     delay(500);
     digitalWrite(LED2, LOW);
@@ -938,19 +949,173 @@ int modernRead(String msg)
 
   case '3':
     digitalWrite(LED3, HIGH);
+    sf = 11000000;
     // Serial.println("Jsem tady .... ");
     temp = tempsensor.readTempC();
-    Serial.print("11 MHz ... Teplota: ");
+    Serial.print(sf);
+    Serial.print(" Hz ... Teplota: ");
     Serial.print(temp);
     Serial.println(" °C");
-    SetFreq(11000000); // long frequency
+    SetFreq(sf); // long frequency
 
     delay(500);
     digitalWrite(LED3, LOW);
     delay(500);
     break;
 
-  case 'c': // Viktor's debug
+  case 'A':
+    if (sf > 11000000) sf -= 10000000;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'S':
+    sf -= 1000000;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'Q':
+    sf -= 100000;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'W':
+    sf -= 10000;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'E':
+    sf -= 1000;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'Z':
+    sf -= 100;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'X':
+    sf -= 10;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'C':
+    sf -= 1;
+    if (sf < 1000000) sf = 1000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'V':
+    sf += 1;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'B':
+    sf += 10;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'N':
+    sf += 100;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'T':
+    sf += 1000;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'Y':
+    sf += 10000;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'U':
+    sf += 100000;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'F':
+    sf += 1000000;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'G':
+    sf += 10000000;
+    if (sf > 60000000) sf = 60000000;
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    break;
+
+  case 'H':
+    SetFreq(sf);
+    Serial.print(sf);
+    Serial.print(" Hz, Am;Ph: ");
+    legacyAmPh();
+    Serial.println(WAIT_DELAY_US);
+    break;
+
+ case 'c': // Viktor's debug
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
     delay(150);

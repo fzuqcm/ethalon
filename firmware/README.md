@@ -1,3 +1,6 @@
+3.1.9. 24.8.2022
+o moznost menit frekvenci krokove a drobne opravy
+
 3.1.8. 2.8.2022
 o mereni impulsni odezvy pomoci 'd'
 
