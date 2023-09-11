@@ -1,3 +1,6 @@
+3.2.0. 11.9.2023
+o debug vystup pro Cardam 'd'
+
 3.1.9. 24.8.2022
 o moznost menit frekvenci krokove a drobne opravy
 
