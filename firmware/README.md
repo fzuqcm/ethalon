@@ -1,3 +1,6 @@
+3.3.0 27.11.2023
+o new measure output for CARDAM ''
+
 3.2.0. 11.9.2023
 o debug vystup pro Cardam 'd'
 

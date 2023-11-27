@@ -17,8 +17,8 @@
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.2.0"
-#define FW_DATE "11.9.2023"
+#define FW_VERSION "3.3.0"
+#define FW_DATE "27.11.2023"
 #define FW_AUTHOR "FZU Team"
 // #define HW "Italy"
 #define TEENSY "Teensy 3.6"
@@ -1118,16 +1118,6 @@ int modernRead(String msg)
     Serial.println(WAIT_DELAY_US);
     break;
 
-//  case 'c': // Viktor's debug
-//     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
-//     rf = sweepFrequency(f);
-//     delay(150);
-//     Serial.println(rf);
-//     tempsensor.shutdown_wake(0);
-//     t = tempsensor.readTempC();
-//     Serial.println(t);
-//     break;
-
   case 'D': // only for debug
     // f = gradient1(calib_freq - DIRTY_RANGE, calib_freq + DIRTY_RANGE);
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
@@ -1145,139 +1135,11 @@ int modernRead(String msg)
     Serial.println("s");
     break;
 
-  // case 'd': // time response for debug foton's electronics
-  //   // int d0 = msg.indexOf(':');
-  //   // int d1 = msg.indexOf(':', d0 + 1);
-
-  //   // if (d0 == -1 || d1 == -1 || d0 == d1)
-  //   // {
-  //   //   Serial.println("arg error");
-  //   //   break;
-  //   // }
-
-  //   // int f0 = 10002600; //msg.substring(0, d0).toInt();
-  //   // int f1 = 10003200; //msg.substring(d0 + 1, d1).toInt();
-  //   // int f2 = 200; //msg.substring(d1 + 1).toInt();
-
-  //   // if (!f0 || !f1 || !f2)
-  //   // {
-  //   //   Serial.println("arg zero error");
-  //   //   break;
-  //   // }
-  //   // int mm = 0;
-
-  //   SetFreq(f0);
-  //   delay(1000);
-  //   difTime = micros();
-  //   for (int i = 0; i < f2; i++) {
-  //     mm = analogRead(AD8302_MAG);
-  //     absTime = micros();
-  //     relTime = absTime - difTime;
-  //     Serial.print(i);
-  //     Serial.print(";");
-  //     Serial.print(relTime);
-  //     Serial.print(";");
-  //     Serial.print(mm);
-  //     Serial.println();
-  //   }
-
-  //   SetFreq(f1);
-  //   for (int i = 0; i < f2; i++) {
-  //     mm = analogRead(AD8302_MAG);
-  //     absTime = micros();
-  //     relTime = absTime - difTime;
-  //     Serial.print(i);
-  //     Serial.print(";");
-  //     Serial.print(relTime);
-  //     Serial.print(";");
-  //     Serial.print(mm);
-  //     Serial.println();
-  //   }
-
-  //   SetFreq(f0);
-  //   for (int i = 0; i < f2; i++) {
-  //     mm = analogRead(AD8302_MAG);
-  //     absTime = micros();
-  //     relTime = absTime - difTime;
-  //     Serial.print(i);
-  //     Serial.print(";");
-  //     Serial.print(relTime);
-  //     Serial.print(";");
-  //     Serial.print(mm);
-  //     Serial.println();
-  //   }
-
-  //   SetFreq(f1);
-  //   for (int i = 0; i < f2; i++) {
-  //     mm = analogRead(AD8302_MAG);
-  //     absTime = micros();
-  //     relTime = absTime - difTime;
-  //     Serial.print(i);
-  //     Serial.print(";");
-  //     Serial.print(relTime);
-  //     Serial.print(";");
-  //     Serial.print(mm);
-  //     Serial.println();
-  //   }
-  //   break;
-
-  // case 'e':
-  //   digitalWrite(LED3, HIGH);
-
-  //   Serial.println("I2C scanner. Scanning ...");
-  //   count = 0;
-
-  //   Wire.begin();
-  //   for (byte i = 8; i < 120; i++)
-  //   {
-  //     Wire.beginTransmission(i);
-  //     if (Wire.endTransmission() == 0)
-  //     {
-  //       Serial.print("Found address: ");
-  //       Serial.print(i, DEC);
-  //       Serial.print(" (0x");
-  //       Serial.print(i, HEX);
-  //       Serial.println(")");
-  //       count++;
-  //       delay(1);
-  //     } // end of good response
-  //   }   // end of for loop
-  //   digitalWrite(LED2, HIGH);
-  //   Serial.println("Done.");
-  //   Serial.print("Found ");
-  //   Serial.print(count, DEC);
-  //   Serial.println(" device(s).");
-
-  //   Serial.println(" ...");
-  //   delay(500);
-  //   digitalWrite(LED3, LOW);
-  //   digitalWrite(LED2, LOW);
-  //   delay(500);
-  //   break;
-
-  // case 'f':
-  //   digitalWrite(LED3, HIGH);
-  //   Wire.beginTransmission(0x2C);
-  //   if (Wire.endTransmission() == 0)
-  //   {
-  //     Serial.println("Italy");
-  //   }
-  //   else
-  //   {
-  //     Wire.beginTransmission(0x2D);
-  //     if (Wire.endTransmission() == 0)
-  //     {
-  //       Serial.println("Foton");
-  //     }
-  //     else
-  //     {
-  //       Serial.println("ERROR: no potentiometer");
-  //     }
-  //   }
-  //   delay(500);
-  //   digitalWrite(LED3, LOW);
-  //   delay(500);
-  //   break;
+  case 'c': // CALEX measurement for CARDAM
+    f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rf = sweepFrequency(f);
+    Serial.println(rf);
+    break;
 
   case 'd': // Debug for Cardam
     fe = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
