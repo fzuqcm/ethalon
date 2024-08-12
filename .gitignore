@@ -9,3 +9,5 @@ __pycache__
 /web/.svelte
 /web/build
 /web/functions
+/test/data.csv
+/test/test.py

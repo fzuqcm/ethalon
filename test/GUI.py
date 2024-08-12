@@ -34,6 +34,11 @@ class Ui_MainWindow(object):
         # lowSlider = QtWidgets.QSlider(self)
         # self.horizontalLayout.addItem(lowSlider)
 
+        self.lowLabel = QtWidgets.QLabel(self.groupBox)
+        self.lowLabel.setObjectName("lowLabel")
+        # self.lowLabel.setText("10001400")
+        self.lowLabel.setText("9980000")
+
         self.lowSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.lowSlider.setGeometry(30, 40, 1000, 30)
         self.lowSlider.valueChanged[int].connect(self.changeLowValue)
@@ -42,12 +47,12 @@ class Ui_MainWindow(object):
         # self.lowSlider.setValue(10001400)
         self.lowSlider.setValue(9980000)
         self.horizontalLayout.addWidget(self.lowSlider)
-
-        self.lowLabel = QtWidgets.QLabel(self.groupBox)
-        self.lowLabel.setObjectName("lowLabel")
         self.horizontalLayout.addWidget(self.lowLabel)
-        # self.lowLabel.setText("10001400")
-        self.lowLabel.setText("9980000")
+
+        self.highLabel = QtWidgets.QLabel(self.groupBox)
+        self.highLabel.setObjectName("highLabel")
+        # self.highLabel.setText("10002850")
+        self.highLabel.setText("10020000")
 
         self.highSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.highSlider.setGeometry(30, 40, 1000, 30)
@@ -57,12 +62,11 @@ class Ui_MainWindow(object):
         # self.highSlider.setValue(10002850)
         self.highSlider.setValue(10020000)
         self.horizontalLayout.addWidget(self.highSlider)
-
-        self.highLabel = QtWidgets.QLabel(self.groupBox)
-        self.highLabel.setObjectName("highLabel")
         self.horizontalLayout.addWidget(self.highLabel)
-        # self.highLabel.setText("10002850")
-        self.highLabel.setText("10020000")
+
+        self.stepLabel = QtWidgets.QLabel(self.groupBox)
+        self.stepLabel.setObjectName("stepLabel")
+        self.stepLabel.setText("100")
 
         self.stepSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.stepSlider.setGeometry(30, 40, 1000, 30)
@@ -72,11 +76,7 @@ class Ui_MainWindow(object):
         self.stepSlider.setValue(100)
         self.stepSlider.setPageStep(2)
         self.horizontalLayout.addWidget(self.stepSlider)
-
-        self.stepLabel = QtWidgets.QLabel(self.groupBox)
-        self.stepLabel.setObjectName("stepLabel")
         self.horizontalLayout.addWidget(self.stepLabel)
-        self.stepLabel.setText("100")
 
         self.ScanButton = QtWidgets.QPushButton(self.groupBox)
         self.ScanButton.setObjectName("ScanButton")
@@ -103,6 +103,10 @@ class Ui_MainWindow(object):
         spacerItem4 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem4)
 
+        self.potLabel = QtWidgets.QLabel(self.groupBox)
+        self.potLabel.setObjectName("potLabel")
+        self.potLabel.setText("240")
+
         self.potSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.potSlider.setGeometry(30, 40, 1000, 30)
         self.potSlider.valueChanged[int].connect(self.changePotValue)
@@ -110,11 +114,7 @@ class Ui_MainWindow(object):
         self.potSlider.setMaximum(255)
         self.potSlider.setValue(240)
         self.horizontalLayout.addWidget(self.potSlider)
-
-        self.potLabel = QtWidgets.QLabel(self.groupBox)
-        self.potLabel.setObjectName("potLabel")
         self.horizontalLayout.addWidget(self.potLabel)
-        self.potLabel.setText("240")
 
         self.DefaultViewButton = QtWidgets.QPushButton(self.groupBox)
         self.DefaultViewButton.setObjectName("DefaultViewButton")
@@ -136,6 +136,19 @@ class Ui_MainWindow(object):
 
         spacerItem5 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem5)
+
+        self.checkbox_10 = QtWidgets.QCheckBox("10", self.groupBox)
+        self.checkbox_10.setChecked(True)
+        self.horizontalLayout.addWidget(self.checkbox_10)
+
+        self.checkbox_30 = QtWidgets.QCheckBox("30", self.groupBox)
+        self.horizontalLayout.addWidget(self.checkbox_30)
+
+        self.checkbox_50 = QtWidgets.QCheckBox("50", self.groupBox)
+        self.horizontalLayout.addWidget(self.checkbox_50)
+
+        spacerItem7 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem7)
 
         self.label = QtWidgets.QLabel(self.groupBox)
         self.label.setObjectName("label")

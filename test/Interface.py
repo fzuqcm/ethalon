@@ -54,10 +54,20 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
     Instrument.stopbits = serial.STOPBITS_ONE
     Instrument.bytesize = serial.EIGHTBITS
     PortName = ''
+    hs30 = 20000000
+    hs50 = 40000000
     Buff = ''
+    Buff30 = ''
+    Buff50 = ''
     Fr = []
     Am = []
     Ph = []
+    Fr30 = []
+    Am30 = []
+    Ph30 = []
+    Fr50 = []
+    Am50 = []
+    Ph50 = []
     ff = []
     aa = []
     polyf = []
@@ -71,9 +81,17 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
     zoom = 0
     inplot = 0
     topam = 0
-    topph = 0
-    phdiff = 0
     minam = 0
+    topph = 0
+    topam30 = 0
+    topph30 = 0
+    topam50 = 0
+    topph50 = 0
+    phdiff = 0
+    am30diff = 0
+    ph30diff = 0
+    am50diff = 0
+    ph50diff = 0
 
     def __init__(self):
         super(self.__class__, self).__init__()
@@ -165,10 +183,10 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         for ports in self.ports:
             self.coms.append(str(ports).split()[0])
             pname = self.coms[pidx]
-            print('pname:',pidx,pname)
+            # print('pname:',pidx,pname)
             if pname[0:10] == '/dev/ttyAC':
                 qcmidx = pidx
-                print(qcmidx)
+                # print(qcmidx)
             pidx += 1
         self.PortSelect.clear()
         self.PortSelect.addItems(self.coms)
@@ -182,47 +200,110 @@ class MyApp(QtWidgets.QMainWindow, GUI.Ui_MainWindow):
         self.Instrument.port = self.PortName
         self.Instrument.open()
         self.Instrument.timeout = 0
-        cmd = str(low) + ';' + str(high) + ';' + str(step) + '\n'
-        print(cmd)
-        self.Instrument.write(cmd.encode())
         app_encoding = "utf-8"
-        buffer = ''
-        while 1:
-            buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
-            if 's' in buffer:
-                break
+        if self.checkbox_10.isChecked():
+            cmd = str(low) + ';' + str(high) + ';' + str(step) + '\n'
+            print(cmd)
+            self.Instrument.write(cmd.encode())
+            buffer = ''
+            while 1:
+                buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
+                if 's' in buffer:
+                    break
+            self.Buff = buffer.splitlines()
+        if self.checkbox_30.isChecked():
+            cmd = str(low + self.hs30) + ';' + str(low + self.hs30 + 3*(high-low)) + ';' + str(3*step) + '\n'
+            print(cmd)
+            self.Instrument.write(cmd.encode())
+            buffer = ''
+            while 1:
+                buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
+                if 's' in buffer:
+                    break
+            self.Buff30 = buffer.splitlines()
+        if self.checkbox_50.isChecked():
+            cmd = str(low + self.hs50) + ';' + str(low + self.hs50 + 5*(high - low)) + ';' + str(5*step) + '\n'
+            print(cmd)
+            self.Instrument.write(cmd.encode())
+            buffer = ''
+            while 1:
+                buffer += self.Instrument.read(self.Instrument.inWaiting()).decode(app_encoding)
+                if 's' in buffer:
+                    break
+            self.Buff50 = buffer.splitlines()        
         self.Instrument.close()
-        self.Buff = buffer.splitlines()
-        buff = self.Buff
-        # print(len(buff))
-        # print(buff[1])
-        # print(buff)
-        self.Fr = np.empty(len(buff)-2)
-        self.Am = np.empty(len(buff)-2)
-        self.Ph = np.empty(len(buff)-2)
-        idx = 0
-        for freq in range(low, high + 1, step):
-            if idx > 0:
-                am, ph = buff[idx-1].split(';')
-                self.Fr[idx-1] = float(freq)
-                self.Am[idx-1] = float(am)
-                self.Ph[idx-1] = float(ph)
-                # print(self.Fr[idx-1],self.Am[idx-1])
-            # print(idx, freq, str(ampl[idx]), str(phase[idx]))
-            # text = pg.TextItem(html='<div style="text-align: center"><span style="color: #000000;"> %s</span></div>',anchor=(0.5, -1))
-            # text.setText('%s'%str(ampl[idx]))
-            idx += 1
+        if self.checkbox_10.isChecked():
+            buff = self.Buff
+            # print(len(buff))
+            # print(buff[1])
+            # print(buff)
+            self.Fr = np.empty(len(buff)-2)
+            self.Am = np.empty(len(buff)-2)
+            self.Ph = np.empty(len(buff)-2)
+            idx = 0
+            for freq in range(low, high + 1, step):
+                if idx > 0:
+                    am, ph = buff[idx-1].split(';')
+                    self.Fr[idx-1] = float(freq)
+                    self.Am[idx-1] = float(am)
+                    self.Ph[idx-1] = float(ph)
+                    # print(self.Fr[idx-1],self.Am[idx-1])
+                # print(idx, freq, str(ampl[idx]), str(phase[idx]))
+                # text = pg.TextItem(html='<div style="text-align: center"><span style="color: #000000;"> %s</span></div>',anchor=(0.5, -1))
+                # text.setText('%s'%str(ampl[idx]))
+                idx += 1
+        if self.checkbox_30.isChecked():
+            buff = self.Buff30
+            self.Fr30 = np.empty(len(buff)-2)
+            self.Am30 = np.empty(len(buff)-2)
+            self.Ph30 = np.empty(len(buff)-2)
+            idx = 0
+            for freq in range(low, high + 1, step):
+                if idx > 0:
+                    am, ph = buff[idx-1].split(';')
+                    self.Fr30[idx-1] = float(freq)
+                    self.Am30[idx-1] = float(am)
+                    self.Ph30[idx-1] = float(ph)
+                idx += 1
+        if self.checkbox_50.isChecked():
+            buff = self.Buff50
+            self.Fr50 = np.empty(len(buff)-2)
+            self.Am50 = np.empty(len(buff)-2)
+            self.Ph50 = np.empty(len(buff)-2)
+            idx = 0
+            for freq in range(low, high + 1, step):
+                if idx > 0:
+                    am, ph = buff[idx-1].split(';')
+                    self.Fr50[idx-1] = float(freq)
+                    self.Am50[idx-1] = float(am)
+                    self.Ph50[idx-1] = float(ph)
+                idx += 1
 
     def plotData(self):
-        self.topam = np.max(self.Am)
-        self.minam = np.min(self.Am)
-        self.topph = np.max(self.Ph)
-        self.phdiff = self.topam - self.topph
         self.GraphA.clear()
-        self.GraphA.plot(self.Fr,self.Am, pen=pg.mkPen(color='#0000FF', width=3))
-        # self.GraphB.clear()
-        # self.GraphB.plot(self.Fr,self.Ph, pen=pg.mkPen(color='#007F00', width=3))
-        self.GraphA.plot(self.Fr,self.Ph + self.phdiff, pen=pg.mkPen(color='#007F00', width=3))
+        if self.checkbox_10.isChecked():
+            self.topam = np.max(self.Am)
+            self.minam = np.min(self.Am)
+            self.topph = np.max(self.Ph)
+            self.phdiff = self.topam - self.topph
+            self.GraphA.plot(self.Fr,self.Am, pen=pg.mkPen(color='#0000FF', width=3))
+            # self.GraphB.clear()
+            # self.GraphB.plot(self.Fr,self.Ph, pen=pg.mkPen(color='#007F00', width=3))
+            self.GraphA.plot(self.Fr,self.Ph + self.phdiff, pen=pg.mkPen(color='#007F00', width=3))
+        if self.checkbox_30.isChecked():
+            self.topam30 = np.max(self.Am30)
+            self.topph30 = np.max(self.Ph30)
+            self.am30diff = self.topam - self.topam30
+            self.ph30diff = self.topam - self.topph30
+            self.GraphA.plot(self.Fr30,self.Am30 + self.am30diff, pen=pg.mkPen(color='#00BFFF', width=2))
+            self.GraphA.plot(self.Fr30,self.Ph30 + self.ph30diff, pen=pg.mkPen(color='#00BF00', width=2))
+        if self.checkbox_50.isChecked():
+            self.topam50 = np.max(self.Am50)
+            self.topph50 = np.max(self.Ph50)
+            self.am50diff = self.topam - self.topam50
+            self.ph50diff = self.topam - self.topph50
+            self.GraphA.plot(self.Fr50,self.Am50 + self.am50diff, pen=pg.mkPen(color='#00DFFF', width=1))
+            self.GraphA.plot(self.Fr50,self.Ph50 + self.ph50diff, pen=pg.mkPen(color='#00DF00', width=1))
 
     def readMax(self):
         self.Instrument.port = self.PortName
