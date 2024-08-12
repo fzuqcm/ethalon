@@ -1,6 +1,8 @@
+
 /***********************************************************
  * FZU: This is a FZU version of QCM firmware. Some parts are not changed from the Italien one,
  * because it is only setting up the digital inputs and outputs.
+ * From version 3.10 support FZU HW v. 5.0
  ***********************************************************/
 
 /******************************* LIBRARIES *****************************/
@@ -12,37 +14,28 @@
 #include <ADC.h>
 #include "Arduino.h"
 #include <TeensyID.h>
-
+#include <limits>
+#include <vector>    // Pro použití std::vector
+#include <algorithm> // Pro použití std::sort
+#include <numeric>   // Pro použití std::accumulate
+#include <SPI.h>
 // #include "MedianFilterLib2.h"
 
 /*************************** DEFINE ***************************/
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.3.0"
-#define FW_DATE "27.11.2023"
+#define FW_VERSION "3.10.0"
+#define FW_DATE "15.7.2024"
 #define FW_AUTHOR "FZU Team"
 // #define HW "Italy"
 #define TEENSY "Teensy 3.6"
 
-// potentiometer AD5252 I2C address is 0x2C(44)
-// #define POT_ADDRESS 0x2C
-// #define FOTON_POT_ADDRESS 0x2D
-// potentiometer AD5252 default value for compatibility with openQCM Q-1 shield @5VDC
-// #define POT_VALUE 240 //254
 // reference clock
 #define REFCLK 125000000
-#define REFQ 12000000
-// #define USE_MULTIPLIER
-// #ifdef USE_MULTIPLIER
-// #define REFCLK (REFQ * 6)
-// #else
-// #define REFCLK REFQ
-// #endif
-
 unsigned long refclk = REFCLK; // Italy is default
 int lastByte = 0b00000000;
 
-char SN[7] = "0000000";
-char HW[12] = "None        ";
+char SN[8] = "0000000";
+char HW[13] = "None        ";
 
 unsigned long sf = 10000000; // default frequency
 
@@ -52,7 +45,7 @@ int POT_VALUE = 240; // 254
 String potval_str = String(POT_VALUE);
 // current input frequency
 long freq = 0;
-// DDS Synthesizer AD9851 pin function
+// DDS Synthesizer AD9851 pin function for Italy HW
 int WCLK = A8;
 int DATA = A9;
 int FQ_UD = A1;
@@ -75,19 +68,29 @@ Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 
 // LED pin
 int LED1 = 24;
-int LED2 = 25;
-int LED3 = 26;
+// int LED2 = 25;
+// int LED3 = 26;
 
 // Potentiometer address
 int POT_ADDRESS = 0x2C;  // Italy is default
+
+//ADS8353
+const int csPin = 10;     // Chip Select pin
+const int sdoAPin = 12;   // SDO_A pin na Teensy 3.6 (MISO)
+const int sdoBPin = 9;    // SDO_B pin na Teensy 3.6 (jiný volný digitální pin)
+const int sdiPin = 11;    // SDI pin na Teensy 3.6 (MOSI)
 
 // ADC init variabl
 boolean WAIT = true;
 boolean WAIT_LONG = false;
 // ADC waiting delay microseconds
-int WAIT_DELAY_US = 300;
+// int WAIT_DELAY_US = 300;
 // int WAIT_DELAY_US = 100;
-int AVERAGE_COUNT = 50;
+// int AVERAGE_COUNT = 50;
+
+int WAIT_DELAY_US = 100;
+int AVERAGE_COUNT = 32;
+int DISCARD_COUNT = 8;
 
 // ADC averaging
 boolean AVERAGING = true;
@@ -104,7 +107,7 @@ const int DEFAULT_CALIB_FREQ = 10000000;
 const int DEFAULT_RANGE = 65536;
 
 const int SWEEP_STEP = 32;
-const int SWEEP_RANGE = 1024;
+const int SWEEP_RANGE = 1280;
 const int SWEEP_COUNT = SWEEP_RANGE / SWEEP_STEP + 1;
 const int SWEEP_REPEAT = 16;
 
@@ -127,63 +130,6 @@ JsonArray magValues = data.createNestedArray("magnitude");
 JsonArray phaseValues = data.createNestedArray("phase");
 uint64_t dseq = 0;
 
-/*************************** FUNCTIONS ***************************/
-
-/* AD9851 set frequency fucntion */
-void SetFreq(unsigned long frequency)
-{
-  // set to 125 MHz internal clock
-  temp_FTW = (frequency * pow(2, 32)) / refclk;
-  FTW = (unsigned long)temp_FTW;
-
-  long pointer = 1;
-  int pointer2 = 0b10000000;
-// #ifdef USE_MULTIPLIER
-//   int lastByte = 0b10000000;
-// #else
-//   int lastByte = 0b00000000;
-// #endif
-  // int lastByte = 0b10000000;
-
-#define DELAY 1
-  /* 32 bit dds tuning word frequency instructions */
-  for (int i = 0; i < 32; i++)
-  {
-    if ((FTW & pointer) > 0)
-      digitalWrite(DATA, HIGH);
-    else
-      digitalWrite(DATA, LOW);
-    delayMicroseconds(DELAY);
-    digitalWrite(WCLK, HIGH);
-    delayMicroseconds(DELAY);
-    digitalWrite(WCLK, LOW);
-    delayMicroseconds(DELAY);
-    pointer = pointer << 1;
-  }
-
-  /* 8 bit dds phase and x6 multiplier refclock*/
-  for (int i = 0; i < 8; i++)
-  {
-    if ((lastByte & pointer2) > 0)
-      digitalWrite(DATA, HIGH);
-    else
-      digitalWrite(DATA, LOW);
-    delayMicroseconds(DELAY);
-    digitalWrite(WCLK, HIGH);
-    delayMicroseconds(DELAY);
-    digitalWrite(WCLK, LOW);
-    delayMicroseconds(DELAY);
-    pointer2 = pointer2 >> 1;
-  }
-
-  digitalWrite(FQ_UD, HIGH);
-  delayMicroseconds(DELAY);
-  digitalWrite(FQ_UD, LOW);
-  delayMicroseconds(DELAY);
-
-  // FTW = 0;
-}
-
 /*************************** SETUP ***************************/
 void setup()
 {
@@ -199,24 +145,21 @@ void setup()
   }
   else
   {
-    Wire.beginTransmission(0x2D);
-    if (Wire.endTransmission() == 0)
-    {
-      // Serial.println("Foton");
-      sprintf(HW, "Foton 12Mhz ");
-      POT_ADDRESS = 0x2D;
-      refclk = REFQ * 6;
-      lastByte = 0b10000000;
-      // multi = 1;
-    }
-    else
-    {
-      // Serial.println("ERROR: no potentiometer");
-      sprintf(HW, "Foton 20MHz ");
-      POT_ADDRESS = 0x00;
-      refclk = 20000000 * 6;
-      lastByte = 0b10000000;
-    }
+    // Serial.println("FZU v.5");
+    sprintf(HW, "FZU 5 20MHz ");
+    POT_ADDRESS = 0x00;
+    WCLK = A7;
+    DATA = A8;
+    refclk = 20000000 * 6;
+    lastByte = 0b10000000;
+    LED1 = 39;
+
+    pinMode(csPin, OUTPUT);
+    pinMode(sdoAPin, INPUT);
+    pinMode(sdoBPin, INPUT);
+    pinMode(sdiPin, OUTPUT);
+    SPI.begin();
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // Nastavení SPI
   }
 
   // Initialise serial communication, set baud rate = 9600
@@ -258,16 +201,16 @@ void setup()
 
   // turn on the light
   pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
+  // pinMode(LED2, OUTPUT);
+  // pinMode(LED3, OUTPUT);
   digitalWrite(LED1, HIGH);
-  digitalWrite(LED2, HIGH);
-  digitalWrite(LED3, HIGH);
+  // digitalWrite(LED2, HIGH);
+  // digitalWrite(LED3, HIGH);
   delay(500);
   digitalWrite(LED1, LOW);
-  digitalWrite(LED2, LOW);
-  digitalWrite(LED3, LOW);
-  
+  // digitalWrite(LED2, LOW);
+  // digitalWrite(LED3, LOW);
+ 
   for (int i = 0; i < SWEEP_COUNT; i++)
   {
     A(i, 0) = i * i;
@@ -308,6 +251,83 @@ void setup()
   }
 }
 
+uint16_t readADC_A() {
+  uint16_t result = 0;
+  digitalWrite(csPin, LOW); // Aktivace AD převodníku
+
+  // Čtení 16-bitových dat z kanálu A
+  result = SPI.transfer16(0x0000);
+
+  digitalWrite(csPin, HIGH); // Deaktivace AD převodníku
+  return result;
+}
+
+uint16_t readADC_B() {
+  uint16_t result = 0;
+  digitalWrite(csPin, LOW); // Aktivace AD převodníku
+
+  // Čtení 16-bitových dat z kanálu B
+  for (int i = 0; i < 16; i++) {
+    result |= digitalRead(sdoBPin) << (15 - i);
+    digitalWrite(csPin, HIGH); // Přepnutí hodinek na další bit
+    digitalWrite(csPin, LOW);
+  }
+
+  digitalWrite(csPin, HIGH); // Deaktivace AD převodníku
+  return result;
+}
+
+/*************************** SET FREQUENCY ***************************/
+
+/* AD9851 set frequency fucntion */
+void SetFreq(unsigned long frequency)
+{
+  // set internal clock
+  temp_FTW = (frequency * pow(2, 32)) / refclk;
+  FTW = (unsigned long)temp_FTW;
+
+  long pointer = 1;
+  int pointer2 = 0b10000000;
+
+#define DELAY 1
+  /* 32 bit dds tuning word frequency instructions */
+  for (int i = 0; i < 32; i++)
+  {
+    if ((FTW & pointer) > 0)
+      digitalWrite(DATA, HIGH);
+    else
+      digitalWrite(DATA, LOW);
+    delayMicroseconds(DELAY);
+    digitalWrite(WCLK, HIGH);
+    delayMicroseconds(DELAY);
+    digitalWrite(WCLK, LOW);
+    delayMicroseconds(DELAY);
+    pointer = pointer << 1;
+  }
+
+  /* 8 bit dds phase and x6 multiplier refclock*/
+  for (int i = 0; i < 8; i++)
+  {
+    if ((lastByte & pointer2) > 0)
+      digitalWrite(DATA, HIGH);
+    else
+      digitalWrite(DATA, LOW);
+    delayMicroseconds(DELAY);
+    digitalWrite(WCLK, HIGH);
+    delayMicroseconds(DELAY);
+    digitalWrite(WCLK, LOW);
+    delayMicroseconds(DELAY);
+    pointer2 = pointer2 >> 1;
+  }
+
+  digitalWrite(FQ_UD, HIGH);
+  delayMicroseconds(DELAY);
+  digitalWrite(FQ_UD, LOW);
+  delayMicroseconds(DELAY);
+}
+
+/*************************** OTHER FUNCTIONS ***************************/
+
 /**
  * FZU: original Italien code, but optimized for better reading
  */
@@ -315,13 +335,17 @@ void legacyAmPh(void) {
   if (WAIT) delayMicroseconds(WAIT_DELAY_US);
   if (WAIT_LONG) delay(10);
 
-  int app_phase = 0;
-  int app_mag = 0;
+  // int app_phase = 0;
+  // int app_mag = 0;
+  uint16_t app_phase = 0;
+  uint16_t app_mag = 0;
 
   for (int i = 0; i < AVERAGE_SAMPLE; i++)
   {
-    app_phase += analogRead(AD8302_PHASE);
-    app_mag += analogRead(AD8302_MAG);
+    // app_phase += analogRead(AD8302_PHASE);
+    app_phase += readADC_B();
+    // app_mag += analogRead(AD8302_MAG);
+    app_mag += readADC_A();
   }
 
   measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
@@ -407,35 +431,65 @@ void sort(int a[], int n)
 
 double preciseAmpl(unsigned long f)
 {
-  int x = AVERAGE_COUNT;
-
+  // const int validReadings = AVERAGE_COUNT - (2 * DISCARD_COUNT);
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US);
 
-  long double cumsum = 0;
-  for (int i = 0; i < x; i++)
+  // std::vector<int> values;
+  std::vector<uint16_t> values;
+  values.reserve(AVERAGE_COUNT);
+  for (int i = 0; i < AVERAGE_COUNT; i++)
   {
-    cumsum += analogRead(AD8302_MAG);
-    // delayMicroseconds(5);
+    // values.push_back(analogRead(AD8302_MAG));
+    values.push_back(readADC_A());
   }
 
-  return cumsum / (double)x;
+  std::sort(values.begin(), values.end());
+  std::vector<int> trimmed_samples(values.begin() + DISCARD_COUNT, values.end() - DISCARD_COUNT);
+  double average = std::accumulate(trimmed_samples.begin(), trimmed_samples.end(), 0.0) / (AVERAGE_COUNT - 2 * DISCARD_COUNT);
+
+  // long double cumsum = 0;
+  // for (int i = DISCARD_COUNT; i < AVERAGE_COUNT - DISCARD_COUNT; i++)
+  // {
+  //   cumsum += values[i];
+  // }
+
+  return average; //cumsum / validReadings;
 }
 
 double precisePhase(long f)
 {
-  int x = AVERAGE_COUNT;
-
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US);
 
-  double cumsum = 0;
-  for (int i = 0; i < x; i++)
+  // std::vector<int> values;
+  std::vector<uint16_t> values;
+  values.reserve(AVERAGE_COUNT);
+  for (int i = 0; i < AVERAGE_COUNT; i++)
   {
-    cumsum += analogRead(AD8302_PHASE);
+    // values.push_back(analogRead(AD8302_PHASE));
+    values.push_back(readADC_B());
   }
 
-  return cumsum / (double)x;
+  std::sort(values.begin(), values.end());
+  std::vector<int> trimmed_samples(values.begin() + DISCARD_COUNT, values.end() - DISCARD_COUNT);
+  double average = std::accumulate(trimmed_samples.begin(), trimmed_samples.end(), 0.0) / (AVERAGE_COUNT - 2 * DISCARD_COUNT);
+
+  return average;
+ 
+  // int x = AVERAGE_COUNT;
+
+  // SetFreq(f);
+  // delayMicroseconds(WAIT_DELAY_US);
+
+  // double cumsum = 0;
+  // for (int i = 0; i < x; i++)
+  // {
+  //   cumsum += analogRead(AD8302_PHASE);
+  //   // cumsum += analogRead(AD8310_MAG);
+  // }
+
+  // return cumsum / (double)x;
 }
 /****************** FZU: HERE THE ORIGINAL FIRMWARE ENDS **************/
 // 9999000;10001000;40
@@ -624,7 +678,7 @@ double sweepFrequency5(long rf)
   }
 
   BLA::Matrix<POLY_DEGREE> coeffs = B_dagger * b;
-  
+ 
   // calculate frequency from indexes
   //double result = (0 - coeffs(1) / (2 * coeffs(0))) * (double)SWEEP_STEP + (double)rf - ((double)SWEEP_RANGE / 2);
   long max = 0;
@@ -661,7 +715,7 @@ double sweepPhase(long rf)
   long f = rf - (SWEEP_RANGE / 4);
 
   // stabilize input, not measures anything
-  preciseAmpl(f);
+  precisePhase(f);
 
   // sweep around given frequency
   for (int i = 0; i < SWEEP_COUNT; i++, f += double(SWEEP_STEP / contraction_factor))
@@ -896,7 +950,7 @@ int modernRead(String msg)
   unsigned long difTime, absTime, relTime;
 
   unsigned long f, fe, f0, f1, f2;
-  double rf, dis, x;
+  double rf, rfph, rf30, rf30ph, rf50, rf50ph, dis, x;
   float t;
   int i, w, e, g;
   float temp = tempsensor.readTempC();
@@ -935,7 +989,7 @@ int modernRead(String msg)
     break;
 
   case '2':
-    digitalWrite(LED2, HIGH);
+    digitalWrite(LED1, HIGH);
     sf = 10000000;
     // Serial.println("Jsem tady .... ");
     temp = tempsensor.readTempC();
@@ -946,12 +1000,12 @@ int modernRead(String msg)
     SetFreq(sf); // long frequency
 
     delay(500);
-    digitalWrite(LED2, LOW);
+    digitalWrite(LED1, LOW);
     delay(500);
     break;
 
   case '3':
-    digitalWrite(LED3, HIGH);
+    digitalWrite(LED1, HIGH);
     sf = 11000000;
     // Serial.println("Jsem tady .... ");
     temp = tempsensor.readTempC();
@@ -962,7 +1016,7 @@ int modernRead(String msg)
     SetFreq(sf); // long frequency
 
     delay(500);
-    digitalWrite(LED3, LOW);
+    digitalWrite(LED1, LOW);
     delay(500);
     break;
 
@@ -1219,8 +1273,23 @@ int modernRead(String msg)
   case 'n': // main measurement to json
     f = gradient1(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
     rf = sweepFrequency(f);
+    f = gradient2(DEFAULT_CALIB_FREQ - DIRTY_RANGE, DEFAULT_CALIB_FREQ + DIRTY_RANGE);
+    rfph = sweepPhase(f);
+    f = gradient1(3*DEFAULT_CALIB_FREQ - 3*DIRTY_RANGE, 3*DEFAULT_CALIB_FREQ + 3*DIRTY_RANGE);
+    rf30 = sweepFrequency(f);
+    f = gradient2(3*DEFAULT_CALIB_FREQ - 3*DIRTY_RANGE, 3*DEFAULT_CALIB_FREQ + 3*DIRTY_RANGE);
+    rf30ph = sweepFrequency(f);
+    f = gradient1(5*DEFAULT_CALIB_FREQ - 5*DIRTY_RANGE, 5*DEFAULT_CALIB_FREQ + 5*DIRTY_RANGE);
+    rf50 = sweepFrequency(f);
+    f = gradient2(5*DEFAULT_CALIB_FREQ - 5*DIRTY_RANGE, 5*DEFAULT_CALIB_FREQ + 5*DIRTY_RANGE);
+    rf50ph = sweepFrequency(f);
     data["id"] = ++dseq;
     data["frequency"] = rf;
+    data["frequencyPhase"] = rfph;
+    data["frequency30"] = rf30;
+    data["frequency30Phase"] = rf30ph;
+    data["frequency50"] = rf50;
+    data["frequency50Phase"] = rf50ph;
     dis = dissipation(rf);
     data["dissipation"] = dis;
     tempsensor.shutdown_wake(0);
@@ -1280,10 +1349,10 @@ int modernRead(String msg)
     break;
 
   case 't':
-    digitalWrite(LED3, HIGH);
+    digitalWrite(LED1, HIGH);
     Serial.println("Test ...");
     delay(500);
-    digitalWrite(LED3, LOW);
+    digitalWrite(LED1, LOW);
     delay(500);
     break;
 
