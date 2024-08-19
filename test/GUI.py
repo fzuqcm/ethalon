@@ -147,6 +147,10 @@ class Ui_MainWindow(object):
         self.checkbox_50 = QtWidgets.QCheckBox("50", self.groupBox)
         self.horizontalLayout.addWidget(self.checkbox_50)
 
+        self.checkbox_Norm = QtWidgets.QCheckBox("Norm", self.groupBox)
+        self.checkbox_Norm.setChecked(True)
+        self.horizontalLayout.addWidget(self.checkbox_Norm)
+
         spacerItem7 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem7)
 

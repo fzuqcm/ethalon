@@ -22,11 +22,12 @@
 // #include "MedianFilterLib2.h"
 
 /*************************** DEFINE ***************************/
-#define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.10.0"
-#define FW_DATE "15.7.2024"
 #define FW_AUTHOR "FZU Team"
-// #define HW "Italy"
+#define FW_NAME "FZU QCM Firmware"
+#define FW_VERSION "3.11.0"
+#define FW_DATE "18.8.2024"
+#define FW_HINT "ADS8353 Support"
+
 #define TEENSY "Teensy 3.6"
 
 // reference clock
@@ -76,9 +77,10 @@ int POT_ADDRESS = 0x2C;  // Italy is default
 
 //ADS8353
 const int csPin = 10;     // Chip Select pin
-const int sdoAPin = 12;   // SDO_A pin na Teensy 3.6 (MISO)
-const int sdoBPin = 9;    // SDO_B pin na Teensy 3.6 (jiný volný digitální pin)
-const int sdiPin = 11;    // SDI pin na Teensy 3.6 (MOSI)
+// const int sdoAPin = 12;   // SDO_A pin na Teensy 3.6 (MISO)
+// const int sdoBPin = 9;    // SDO_B pin na Teensy 3.6 (jiný volný digitální pin)
+// const int sdiPin = 11;    // SDI pin na Teensy 3.6 (MOSI)
+const float referenceVoltage = 3.3; // 5.0
 
 // ADC init variabl
 boolean WAIT = true;
@@ -91,6 +93,7 @@ boolean WAIT_LONG = false;
 int WAIT_DELAY_US = 100;
 int AVERAGE_COUNT = 32;
 int DISCARD_COUNT = 8;
+int ITALY_CONSTANT = 1;
 
 // ADC averaging
 boolean AVERAGING = true;
@@ -133,6 +136,12 @@ uint64_t dseq = 0;
 /*************************** SETUP ***************************/
 void setup()
 {
+  // Initialise serial communication, set baud rate = 9600
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // Čeká, dokud není inicializován sériový port (platí pro desky s nativním USB)
+  }
+
   // Initialise I2C communication as Master
   Wire.begin();
 
@@ -153,17 +162,17 @@ void setup()
     refclk = 20000000 * 6;
     lastByte = 0b10000000;
     LED1 = 39;
+    ITALY_CONSTANT = 4;
 
     pinMode(csPin, OUTPUT);
-    pinMode(sdoAPin, INPUT);
-    pinMode(sdoBPin, INPUT);
-    pinMode(sdiPin, OUTPUT);
+    digitalWrite(csPin, HIGH); // Neaktivní stav CS
+    // pinMode(sdoAPin, INPUT);
+    // pinMode(sdoBPin, INPUT);
+    // pinMode(sdiPin, OUTPUT);
     SPI.begin();
-    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // Nastavení SPI
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1)); // Nastavení SPI
+    writeCFR(0x8400);  // Nastavení režimu 32-CLK Single-SDO Mode (CFR.B11 = 0, CFR.B10 = 1)
   }
-
-  // Initialise serial communication, set baud rate = 9600
-  Serial.begin(115200);
 
   // set potentiometer value
   if (POT_ADDRESS) {
@@ -239,6 +248,7 @@ void setup()
   fw["version"] = FW_VERSION;
   fw["date"] = FW_DATE;
   fw["author"] = FW_AUTHOR;
+  fw["hint"] = FW_HINT;
   fw["hw"] = HW;
   fw["teensy"] = "Teensy 3.6";
   sprintf(SN, "%u", (unsigned int)teensyUsbSN());
@@ -251,29 +261,62 @@ void setup()
   }
 }
 
-uint16_t readADC_A() {
-  uint16_t result = 0;
-  digitalWrite(csPin, LOW); // Aktivace AD převodníku
+/*************************** ADS8353 SUPPORT ***************************/
 
-  // Čtení 16-bitových dat z kanálu A
-  result = SPI.transfer16(0x0000);
+void writeCFR(uint16_t config) {
+  digitalWrite(csPin, LOW);
+  // Odeslání příkazu pro zápis do CFR
+  SPI.transfer16(0x8000 | config);  // 0x8000 značí zápis do CFR
+  //Zajištění 48 hodinových cyklů pro Frame F1
+  for (int i = 0; i < 2; i++) {
+    SPI.transfer16(0x0000);  // Dodatkových 32 hodinových cyklů (celkem 48 hodinových cyklů)
+  }
+  digitalWrite(csPin, HIGH);
+}
 
-  digitalWrite(csPin, HIGH); // Deaktivace AD převodníku
+uint64_t readCFR() {
+  uint64_t result = 0;
+  // Odeslání prázdného rámce (48 CLK) pro Frame F
+  digitalWrite(csPin, LOW);
+  for (int i = 0; i < 3; i++) {
+    SPI.transfer16(0x0000);  // Celkem 48 hodinových cyklů
+  }
+  digitalWrite(csPin, HIGH);
+
+  delayMicroseconds(1);
+
+  // Odeslání kontrolního příkazu pro čtení CFR během Frame F1 (48 CLK)
+  digitalWrite(csPin, LOW);
+  SPI.transfer16(0x3000);  // 0x3000 značí čtení CFR
+  for (int i = 0; i < 2; i++) {
+    SPI.transfer16(0x0000);  // Dodatkových 32 hodinových cyklů (celkem 48 hodinových cyklů)
+  }
+  digitalWrite(csPin, HIGH);
+
+  delayMicroseconds(1);
+
+  // Čtení 48 bitů dat během Frame F2 (16 bitů pro CFR a 32 bitů padding)
+  digitalWrite(csPin, LOW);
+  result = SPI.transfer16(0x0000); // Přečtení prvních 16 bitů 
+  result = (result << 16) | SPI.transfer16(0x0000); // Přečtení dalších 16 bitů 
+  result = (result << 32) | SPI.transfer16(0x0000); // Přečtení dalších 16 bitů 
+  digitalWrite(csPin, HIGH);
+
   return result;
 }
 
-uint16_t readADC_B() {
-  uint16_t result = 0;
-  digitalWrite(csPin, LOW); // Aktivace AD převodníku
+uint64_t readADC() {
+  uint64_t result = 0;
 
-  // Čtení 16-bitových dat z kanálu B
-  for (int i = 0; i < 16; i++) {
-    result |= digitalRead(sdoBPin) << (15 - i);
-    digitalWrite(csPin, HIGH); // Přepnutí hodinek na další bit
-    digitalWrite(csPin, LOW);
-  }
+  digitalWrite(csPin, LOW); // Aktivace převodníku
 
-  digitalWrite(csPin, HIGH); // Deaktivace AD převodníku
+  // Čtení 32-bitových dat (16 bitů z kanálu A, 16 bitů z kanálu B)
+  result = SPI.transfer16(0x0000); // Přečtení prvních 16 bitů
+  result = (result << 16) | SPI.transfer16(0x0000); // Přečtení dalších 16 bitů
+  result = (result << 32) | SPI.transfer16(0x0000); // Přečtení dalších 16 bitů
+
+  digitalWrite(csPin, HIGH); // Deaktivace převodníku
+
   return result;
 }
 
@@ -335,21 +378,23 @@ void legacyAmPh(void) {
   if (WAIT) delayMicroseconds(WAIT_DELAY_US);
   if (WAIT_LONG) delay(10);
 
-  // int app_phase = 0;
-  // int app_mag = 0;
-  uint16_t app_phase = 0;
-  uint16_t app_mag = 0;
+  double measure_phase = 0;
+  double measure_mag = 0;
+  uint64_t adcData = 0;
+  uint64_t app_phase = 0;
+  uint64_t app_mag = 0;
 
   for (int i = 0; i < AVERAGE_SAMPLE; i++)
   {
+    adcData = readADC();
     // app_phase += analogRead(AD8302_PHASE);
-    app_phase += readADC_B();
+    app_phase += adcData & 0xFFFF;
     // app_mag += analogRead(AD8302_MAG);
-    app_mag += readADC_A();
+    app_mag += (adcData >> 32) & 0xFFFF; 
   }
 
-  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
-  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
+  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE / ITALY_CONSTANT;
+  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE / ITALY_CONSTANT;
 
   Serial.print(measure_mag);
   Serial.print(";");
@@ -377,8 +422,6 @@ int legacyRead(String msg)
   }
 
   // 9990000;10010000;40
-  double measure_phase = 0;
-  double measure_mag = 0;
 
   for (unsigned long f = f0; f <= f1; f += f2)
   {
@@ -431,6 +474,7 @@ void sort(int a[], int n)
 
 double preciseAmpl(unsigned long f)
 {
+  // uint64_t adcData = 0;
   // const int validReadings = AVERAGE_COUNT - (2 * DISCARD_COUNT);
   SetFreq(f);
   delayMicroseconds(WAIT_DELAY_US);
@@ -441,7 +485,8 @@ double preciseAmpl(unsigned long f)
   for (int i = 0; i < AVERAGE_COUNT; i++)
   {
     // values.push_back(analogRead(AD8302_MAG));
-    values.push_back(readADC_A());
+    // values.push_back(readADC_A());
+    values.push_back((readADC() >> 32) & 0xFFFF);
   }
 
   std::sort(values.begin(), values.end());
@@ -468,7 +513,8 @@ double precisePhase(long f)
   for (int i = 0; i < AVERAGE_COUNT; i++)
   {
     // values.push_back(analogRead(AD8302_PHASE));
-    values.push_back(readADC_B());
+    // values.push_back(readADC_B());
+    values.push_back(readADC() & 0xFFFF);
   }
 
   std::sort(values.begin(), values.end());
