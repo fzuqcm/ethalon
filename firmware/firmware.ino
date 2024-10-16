@@ -24,9 +24,9 @@
 /*************************** DEFINE ***************************/
 #define FW_AUTHOR "FZU Team"
 #define FW_NAME "FZU QCM Firmware"
-#define FW_VERSION "3.11.0"
-#define FW_DATE "18.8.2024"
-#define FW_HINT "ADS8353 Support"
+#define FW_VERSION "3.12.0"
+#define FW_DATE "19.8.2024"
+#define FW_HINT "Legacy read Am/Ph normalization"
 
 #define TEENSY "Teensy 3.6"
 
@@ -94,6 +94,7 @@ int WAIT_DELAY_US = 100;
 int AVERAGE_COUNT = 32;
 int DISCARD_COUNT = 8;
 int ITALY_CONSTANT = 1;
+int Italy = 1;
 
 // ADC averaging
 boolean AVERAGING = true;
@@ -155,14 +156,15 @@ void setup()
   else
   {
     // Serial.println("FZU v.5");
-    sprintf(HW, "FZU 5 20MHz ");
+    sprintf(HW, "FZU 6 20MHz ");
     POT_ADDRESS = 0x00;
     WCLK = A7;
     DATA = A8;
-    refclk = 20000000 * 6;
+    refclk = 30000000 * 6;
     lastByte = 0b10000000;
     LED1 = 39;
     ITALY_CONSTANT = 4;
+    Italy = 0;
 
     pinMode(csPin, OUTPUT);
     digitalWrite(csPin, HIGH); // Neaktivní stav CS
@@ -386,20 +388,88 @@ void legacyAmPh(void) {
 
   for (int i = 0; i < AVERAGE_SAMPLE; i++)
   {
-    adcData = readADC();
-    // app_phase += analogRead(AD8302_PHASE);
-    app_phase += adcData & 0xFFFF;
-    // app_mag += analogRead(AD8302_MAG);
-    app_mag += (adcData >> 32) & 0xFFFF; 
+    if (Italy) {
+      app_phase += analogRead(AD8302_PHASE);
+      app_mag += analogRead(AD8302_MAG);
+    }
+    else {
+      adcData = readADC();
+      app_phase += adcData & 0xFFFF;
+      app_mag += (adcData >> 32) & 0xFFFF;
+    }
   }
 
-  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE / ITALY_CONSTANT;
-  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE / ITALY_CONSTANT;
+  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
+  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
 
   Serial.print(measure_mag);
   Serial.print(";");
   Serial.print(measure_phase);
   Serial.println();
+}
+
+// int legacyRead(String msg)
+// {
+//   int d0 = msg.indexOf(';');
+//   int d1 = msg.indexOf(';', d0 + 1);
+
+//   if (d0 == -1 || d1 == -1 || d0 == d1)
+//   {
+//     return 1;
+//   }
+
+//   long f0 = msg.substring(0, d0).toInt();
+//   long f1 = msg.substring(d0 + 1, d1).toInt();
+//   long f2 = msg.substring(d1 + 1).toInt();
+
+//   if (!f0 || !f1 || !f2)
+//   {
+//     return 2;
+//   }
+
+//   // 9990000;10010000;40
+
+//   for (unsigned long f = f0; f <= f1; f += f2)
+//   {
+//     SetFreq(f);
+//     legacyAmPh();
+//   }
+
+//   tempsensor.shutdown_wake(0);
+//   float temperature = tempsensor.readTempC();
+
+//   Serial.print(temperature);
+//   Serial.print(";");
+//   Serial.print(POT_VALUE);
+//   Serial.print(";");
+//   Serial.println("s");
+
+//   return 0;
+// }
+
+void legacyAmPh2(double &measure_mag, double &measure_phase) {
+  if (WAIT) delayMicroseconds(WAIT_DELAY_US);
+  if (WAIT_LONG) delay(10);
+
+  uint64_t adcData = 0;
+  uint64_t app_phase = 0;
+  uint64_t app_mag = 0;
+
+  for (int i = 0; i < AVERAGE_SAMPLE; i++)
+  {
+    if (Italy) {
+      app_phase += analogRead(AD8302_PHASE);
+      app_mag += analogRead(AD8302_MAG);
+    }
+    else {
+      adcData = readADC();
+      app_phase += adcData & 0xFFFF;
+      app_mag += (adcData >> 32) & 0xFFFF;
+    }
+  }
+
+  measure_phase = 1.0 * app_phase / AVERAGE_SAMPLE;
+  measure_mag = 1.0 * app_mag / AVERAGE_SAMPLE;
 }
 
 int legacyRead(String msg)
@@ -421,13 +491,53 @@ int legacyRead(String msg)
     return 2;
   }
 
-  // 9990000;10010000;40
+  double max_amplitude = 0;
+  double max_phase = 0;
+  double measure_mag = 0;
+  double measure_phase = 0;
 
+  int num_samples = (f1 - f0) / f2 + 1;
+  double* magnitudes = new double[num_samples];
+  double* phases = new double[num_samples];
+
+  // První průchod: měření a ukládání hodnot
+  int index = 0;
   for (unsigned long f = f0; f <= f1; f += f2)
   {
     SetFreq(f);
-    legacyAmPh();
+    legacyAmPh2(measure_mag, measure_phase);
+
+    magnitudes[index] = measure_mag;
+    phases[index] = measure_phase;
+
+    if (measure_mag > max_amplitude) {
+      max_amplitude = measure_mag;
+    }
+
+    if (measure_phase > max_phase) {
+      max_phase = measure_phase;
+    }
+
+    index++;
   }
+
+  double phase_diff = max_phase - max_amplitude;
+
+  // Druhý průchod: vypisování upravených hodnot
+  for (int i = 0; i < num_samples; i++)
+  {
+    double corrected_phase = phases[i];
+    // double corrected_phase = phases[i] - phase_diff;
+
+    Serial.print(magnitudes[i]);
+    Serial.print(";");
+    Serial.print(corrected_phase);
+    Serial.println();
+  }
+
+  // Uvolnění paměti
+  delete[] magnitudes;
+  delete[] phases;
 
   tempsensor.shutdown_wake(0);
   float temperature = tempsensor.readTempC();
@@ -440,6 +550,7 @@ int legacyRead(String msg)
 
   return 0;
 }
+
 
 void swap(int *p, int *q)
 {
@@ -484,9 +595,12 @@ double preciseAmpl(unsigned long f)
   values.reserve(AVERAGE_COUNT);
   for (int i = 0; i < AVERAGE_COUNT; i++)
   {
-    // values.push_back(analogRead(AD8302_MAG));
-    // values.push_back(readADC_A());
-    values.push_back((readADC() >> 32) & 0xFFFF);
+    if (Italy) {
+      values.push_back(analogRead(AD8302_MAG));
+    }
+    else {
+      values.push_back((readADC() >> 32) & 0xFFFF);
+    }
   }
 
   std::sort(values.begin(), values.end());
@@ -512,9 +626,12 @@ double precisePhase(long f)
   values.reserve(AVERAGE_COUNT);
   for (int i = 0; i < AVERAGE_COUNT; i++)
   {
-    // values.push_back(analogRead(AD8302_PHASE));
-    // values.push_back(readADC_B());
-    values.push_back(readADC() & 0xFFFF);
+    if (Italy) {
+      values.push_back(analogRead(AD8302_PHASE));
+    }
+    else {
+      values.push_back(readADC() & 0xFFFF);
+    }
   }
 
   std::sort(values.begin(), values.end());
@@ -801,7 +918,9 @@ double dissipation(unsigned long rf)
   // stabilize input
   SetFreq(rf);
   delayMicroseconds(WAIT_DELAY_US * 3);
-  analogRead(AD8302_MAG);
+  if (Italy) {
+    analogRead(AD8302_MAG);
+  }
 
   // second stabilization
   SetFreq(rf);
